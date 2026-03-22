@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAiStore } from '@/store/aiStore';
 import { useUiStore } from '@/store/uiStore';
+import { useProjectStore } from '@/store/projectStore'; // 프로젝트 스토어 추가
 import { cn } from '@/lib/utils';
-import { X, Sparkles, Key, AlertCircle, RefreshCcw, Library, SquareArrowOutUpRight } from 'lucide-react';
+import { X, Sparkles, Key, AlertCircle, RefreshCcw, Library, SquareArrowOutUpRight, Pin, Trash2, Plus, ChevronDown } from 'lucide-react';
 import { AiSuggestion } from './AiSuggestion';
 import { PipWindow } from '@/components/ui/PipWindow';
 import { ResizeHandle } from '@/components/ui/ResizeHandle';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 
 interface AiPanelProps {
   onInsert: (content: string) => void;
@@ -29,8 +32,19 @@ export function AiPanel({ onInsert, onRefresh }: AiPanelProps) {
   const {
     aiPanelWidth, setAiPanelWidth,
     aiPanelPipMode, setAiPanelPipMode,
-    aiPanelPipPosition, setAiPanelPipPosition
+    aiPanelPipPosition, setAiPanelPipPosition,
+    currentSceneId // 추가
   } = useUiStore();
+
+  const { currentProjectId } = useProjectStore(); // 추가
+
+  const [isPinnedExpanded, setIsPinnedExpanded] = useState(true);
+
+  // 핀한 문장 로드 (최신순)
+  const pinnedSentences = useLiveQuery(
+    () => (currentProjectId ? db.pinned_sentences.where('projectId').equals(currentProjectId).reverse().sortBy('createdAt') : []),
+    [currentProjectId]
+  ) || [];
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,8 +68,31 @@ export function AiPanel({ onInsert, onRefresh }: AiPanelProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAiPanelOpen, setAiPanelOpen, suggestions, onInsert]);
 
+  const handlePin = async (text: string) => {
+    if (!currentProjectId || !text) return;
+    try {
+      await db.pinned_sentences.add({
+        projectId: currentProjectId,
+        sceneId: currentSceneId || 'default',
+        text,
+        createdAt: Date.now()
+      });
+    } catch (e) {
+      console.error('Failed to pin sentence', e);
+    }
+  };
+
+  const handleDeletePinned = async (id?: number) => {
+    if (!id) return;
+    try {
+      await db.pinned_sentences.delete(id);
+    } catch (e) {
+      console.error('Failed to delete pinned sentence', e);
+    }
+  };
+
   const innerContent = (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       {/* 세계관 컨텍스트 태그 */}
       {worldContext.length > 0 && (
         <div className="px-4 py-2.5 flex flex-wrap gap-1.5 border-b border-[var(--divider)] items-center shrink-0">
@@ -81,59 +118,124 @@ export function AiPanel({ onInsert, onRefresh }: AiPanelProps) {
         </div>
       )}
 
-      {/* 본문 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {aiError === 'API_KEY_NOT_FOUND' ? (
-          <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-dashed border-[var(--border)] text-center space-y-3">
-            <Key size={28} className="text-[var(--text-disabled)]" />
-            <div className="space-y-1">
-              <h3 className="font-semibold text-[13px] text-[var(--text-primary)]">API 키 필요</h3>
-              <p className="text-[12px] text-[var(--text-secondary)]">.env.local 파일에 Gemini API 키를 설정해주세요.</p>
+      {/* 본문 영역 - 스크롤 가능 */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className="p-4 space-y-4">
+          {aiError === 'API_KEY_NOT_FOUND' ? (
+            <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-dashed border-[var(--border)] text-center space-y-3">
+              <Key size={28} className="text-[var(--text-disabled)]" />
+              <div className="space-y-1">
+                <h3 className="font-semibold text-[13px] text-[var(--text-primary)]">API 키 필요</h3>
+                <p className="text-[12px] text-[var(--text-secondary)]">.env.local 파일에 Gemini API 키를 설정해주세요.</p>
+              </div>
             </div>
-          </div>
-        ) : aiError ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
-            <AlertCircle size={28} className="text-[var(--danger)] opacity-50" />
-            <div className="space-y-1">
-              <p className="text-[13px] text-[var(--text-secondary)]">문장을 가져오지 못했습니다.</p>
-              <button 
-                onClick={onRefresh}
-                className="text-[12px] text-[var(--accent)] hover:underline font-medium flex items-center gap-1 mx-auto"
-              >
-                <RefreshCcw size={12} />
-                다시 시도
-              </button>
+          ) : aiError ? (
+            <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
+              <AlertCircle size={28} className="text-[var(--danger)] opacity-50" />
+              <div className="space-y-1">
+                <p className="text-[13px] text-[var(--text-secondary)]">문장을 가져오지 못했습니다.</p>
+                <button 
+                  onClick={onRefresh}
+                  className="text-[12px] text-[var(--accent)] hover:underline font-medium flex items-center gap-1 mx-auto"
+                >
+                  <RefreshCcw size={12} />
+                  다시 시도
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-2.5">
-            {suggestions.map((content, i) => (
-              <AiSuggestion
-                key={i}
-                index={i}
-                content={content}
-                isLoading={isAiLoading}
-                onClick={() => {
-                  onInsert(content);
-                  setAiPanelOpen(false);
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="pt-3 border-t border-[var(--divider)] space-y-2">
-          {lastUsedPrompt && (
-            <div className="bg-[var(--bg-hover)] rounded-md px-3 py-2 text-center text-[10px] text-[var(--accent)] font-medium border border-[var(--border)] italic">
-              &quot;{lastUsedPrompt}&quot;
+          ) : (
+            <div className="grid grid-cols-1 gap-2.5">
+              {suggestions.map((content, i) => (
+                <AiSuggestion
+                  key={i}
+                  index={i}
+                  content={content}
+                  isLoading={isAiLoading}
+                  onClick={() => {
+                    onInsert(content);
+                    setAiPanelOpen(false);
+                  }}
+                  onPin={() => handlePin(content)}
+                  isPinned={pinnedSentences.some(s => s.text === content)}
+                />
+              ))}
             </div>
           )}
-          <p className="text-[10px] text-[var(--text-disabled)] text-center leading-relaxed">
-            블록 선택 후 Ctrl+1~5 도는 Ctrl+Space로 <br /> 새로운 문장을 요청할 수 있습니다.
-          </p>
+
+          <div className="pt-3 border-t border-[var(--divider)] space-y-2">
+            {lastUsedPrompt && (
+              <div className="bg-[var(--bg-hover)] rounded-md px-3 py-2 text-center text-[10px] text-[var(--accent)] font-medium border border-[var(--border)] italic">
+                &quot;{lastUsedPrompt}&quot;
+              </div>
+            )}
+            <p className="text-[10px] text-[var(--text-disabled)] text-center leading-relaxed">
+              블록 선택 후 Ctrl+1~5 또는 Ctrl+Space로 <br /> 새로운 문장을 요청할 수 있습니다.
+            </p>
+          </div>
+        </div>
+
+        {/* 핀한 문장 모아두기 */}
+        <div className="border-t border-[var(--divider)] bg-[var(--bg-sidebar)]/50">
+          <button 
+            onClick={() => setIsPinnedExpanded(!isPinnedExpanded)}
+            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors group"
+          >
+            <div className="flex items-center gap-2">
+              <Pin size={14} className={cn("text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors", pinnedSentences.length > 0 && "text-[var(--accent)]")} />
+              <span className="text-[12px] font-bold text-[var(--text-primary)]">모아둔 문장</span>
+              {pinnedSentences.length > 0 && (
+                <span className="bg-[var(--accent)]/10 text-[var(--accent)] text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                  {pinnedSentences.length}
+                </span>
+              )}
+            </div>
+            <ChevronDown size={14} className={cn("text-[var(--text-disabled)] transition-transform duration-200", isPinnedExpanded && "rotate-180")} />
+          </button>
+
+          {isPinnedExpanded && (
+            <div className="px-4 pb-4 space-y-2 animate-in slide-in-from-top-1 duration-200">
+              {pinnedSentences.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-[11px] text-[var(--text-disabled)]">핀한 문장이 없습니다.</p>
+                </div>
+              ) : (
+                pinnedSentences.map((s) => (
+                  <div 
+                    key={s.id}
+                    className="group/item flex flex-col p-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)]/50 transition-all shadow-sm"
+                  >
+                    <p className="text-[13px] leading-relaxed text-[var(--text-primary)] mb-2" style={{ fontFamily: 'var(--font-noto-serif-kr)' }}>
+                      {s.text}
+                    </p>
+                    <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleDeletePinned(s.id)}
+                        className="p-1 px-2 flex items-center gap-1 text-[10px] text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                        title="제거"
+                      >
+                        <Trash2 size={12} />
+                        <span>삭제</span>
+                      </button>
+                      <button 
+                        onClick={() => {
+                          onInsert(s.text);
+                          setAiPanelOpen(false);
+                        }}
+                        className="p-1 px-2 flex items-center gap-1 text-[10px] text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition-all font-bold"
+                        title="본문에 삽입"
+                      >
+                        <Plus size={12} />
+                        <span>삽입</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 
   if (aiPanelPipMode) {

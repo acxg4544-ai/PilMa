@@ -2,16 +2,29 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Pin, Check } from 'lucide-react';
 
 interface AiSuggestionProps {
   index: number;
   content: string;
   isLoading: boolean;
   onClick: () => void;
+  onPin?: () => void;
+  isPinned?: boolean;
 }
 
-export function AiSuggestion({ index, content, isLoading, onClick }: AiSuggestionProps) {
+export function AiSuggestion({ index, content, isLoading, onClick, onPin, isPinned }: AiSuggestionProps) {
+  const [justPinned, setJustPinned] = React.useState(false);
   const isStreaming = isLoading && content.length === 0;
+
+  const handlePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onPin) {
+      onPin();
+      setJustPinned(true);
+      setTimeout(() => setJustPinned(false), 2000);
+    }
+  };
 
   return (
     <div
@@ -27,7 +40,23 @@ export function AiSuggestion({ index, content, isLoading, onClick }: AiSuggestio
         <span className="text-[11px] font-bold text-white leading-none">{index + 1}</span>
       </div>
       
-      <div className="pl-7">
+      {/* 핀 버튼 */}
+      {onPin && !isStreaming && (
+        <button
+          onClick={handlePin}
+          className={cn(
+            "absolute top-3 right-3 p-1.5 rounded-md transition-all duration-200",
+            (isPinned || justPinned) 
+              ? "text-[var(--pm-success)] bg-[var(--pm-success)]/10" 
+              : "text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)] opacity-0 group-hover:opacity-100"
+          )}
+          title="모아두기에 저장"
+        >
+          {isPinned || justPinned ? <Check size={14} /> : <Pin size={14} />}
+        </button>
+      )}
+      
+      <div className="pl-7 pr-6">
         <p className="text-[13px] leading-relaxed text-[var(--text-primary)] min-h-[1.5rem]" style={{ fontFamily: 'var(--font-noto-serif-kr)' }}>
           {content}
           {isLoading && content.length > 0 && (

@@ -70,6 +70,14 @@ export interface Dictionary {
   word: string;
 }
 
+export interface PinnedSentence {
+  id?: number;
+  projectId: string;
+  sceneId: string;
+  text: string;
+  createdAt: number;
+}
+
 export class PilMaDatabase extends Dexie {
   projects!: Table<Project>;
   volumes!: Table<Volume>;
@@ -79,6 +87,7 @@ export class PilMaDatabase extends Dexie {
   prompt_presets!: Table<PromptPreset>;
   text_replacements!: Table<TextReplacement>;
   dictionary!: Table<Dictionary>;
+  pinned_sentences!: Table<PinnedSentence>;
 
   constructor() {
     super('pilma-db');
@@ -127,6 +136,17 @@ export class PilMaDatabase extends Dexie {
       prompt_presets: 'id, projectId, slot, prompt',
       text_replacements: 'id, projectId, from, to',
       dictionary: 'id, projectId, word',
+    });
+    this.version(7).stores({
+      projects: 'id, title, createdAt, updatedAt',
+      volumes: 'id, projectId, title, order, icon',
+      chapters: 'id, volumeId, title, order, icon',
+      scenes: 'id, projectId, chapterId, title, order, icon, wordCount, createdAt, updatedAt, plot',
+      ai_cache: 'id, projectId, contentHash, geminiFileUri, summary, updatedAt',
+      prompt_presets: 'id, projectId, slot, prompt',
+      text_replacements: 'id, projectId, from, to',
+      dictionary: 'id, projectId, word',
+      pinned_sentences: '++id, projectId, sceneId, text, createdAt',
     });
   }
 }
