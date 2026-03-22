@@ -53,6 +53,8 @@ export default function NovelEditor() {
   const [isPresetOpen, setIsPresetOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const presetRef = useRef<HTMLDivElement>(null);
+  const prevZoomRef = useRef(zoomLevel);
+  const isSyncingSizeRef = useRef(false);
 
   // 맞춤법 검사 상태
   const [isSpellCheckOpen, setIsSpellCheckOpen] = useState(false);
@@ -160,15 +162,37 @@ export default function NovelEditor() {
   useEffect(() => {
     if (editorPipMode && isMobileView) {
       const platformWidth = parseInt(currentPreset.styles.maxWidth);
-      const newWidth = platformWidth + 80; // 패딩 및 여유 공간 포함
-      if (editorPipPosition.w !== newWidth) {
+      const zoomFactor = zoomLevel / 100;
+      const newWidth = Math.round((platformWidth + 80) * zoomFactor); 
+      
+      if (Math.abs(editorPipPosition.w - newWidth) > 1) {
         setEditorPipPosition({
           ...editorPipPosition,
           w: newWidth
         });
       }
     }
-  }, [editorPreset, editorPipMode, isMobileView, currentPreset.styles.maxWidth, editorPipPosition, setEditorPipPosition]);
+  }, [editorPreset, editorPipMode, isMobileView, currentPreset.styles.maxWidth, zoomLevel]);
+
+  // 줌 레벨 변경 시 PIP 창 크기 동적으로 조절 (실시간 연동)
+  useEffect(() => {
+    if (editorPipMode && prevZoomRef.current !== zoomLevel && !isSyncingSizeRef.current) {
+      const factor = zoomLevel / prevZoomRef.current;
+      
+      isSyncingSizeRef.current = true;
+      setEditorPipPosition({
+        ...editorPipPosition,
+        w: Math.max(isMobileView ? 400 : 500, Math.round(editorPipPosition.w * factor)),
+        h: Math.round(editorPipPosition.h * factor),
+      });
+      
+      // 상태 업데이트 반영 대기
+      setTimeout(() => {
+        isSyncingSizeRef.current = false;
+      }, 50);
+    }
+    prevZoomRef.current = zoomLevel;
+  }, [zoomLevel, editorPipMode, isMobileView, editorPipPosition.w, editorPipPosition.h, setEditorPipPosition]);
 
   // Ctrl + Space, Ctrl + 1~5 리스너
   useEffect(() => {
