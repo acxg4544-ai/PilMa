@@ -30,7 +30,7 @@ export default function NovelEditor() {
   const editorRef = useRef<any>(null);
   
   const setWordCount = useUiStore((state) => state.setWordCount);
-  const currentProjectId = useUiStore((state) => state.currentProjectId);
+  const currentProjectId = useProjectStore((state) => state.currentProjectId);
   const currentSceneId = useUiStore((state) => state.currentSceneId);
   const currentScene = useLiveQuery(
     () => (currentSceneId ? db.scenes.get(currentSceneId) : undefined),
