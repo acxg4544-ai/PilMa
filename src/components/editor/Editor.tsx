@@ -19,7 +19,7 @@ import { PipWindow } from '@/components/ui/PipWindow';
 import { SpellCheckPanel } from './SpellCheckPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { cn } from '@/lib/utils';
-import { Clock, ChevronDown, ChevronRight, SquareArrowOutUpRight, Monitor, Smartphone, Maximize, ZoomIn, ZoomOut, Search, Quote, Keyboard, Copy, Check, Pencil } from 'lucide-react';
+import { Clock, ChevronDown, ChevronRight, SquareArrowOutUpRight, Monitor, Smartphone, Maximize, ZoomIn, ZoomOut, Search, Quote, Keyboard, Copy, Check, Pencil, Bot } from 'lucide-react';
 
 export default function NovelEditor() {
   const [initialContent, setInitialContent] = useState<any>(null);
@@ -200,7 +200,7 @@ export default function NovelEditor() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const { lastInsertionRequest, clearInsertRequest, promptPresets, activeCacheSummary, activeCacheUri } = useAiStore();
+  const { lastInsertionRequest, clearInsertRequest, promptPresets, activeCacheSummary, activeCacheUri, isAiPanelOpen, setAiPanelOpen } = useAiStore();
   const { triggerAutoSave } = useAutoSave();
   const { fetchSuggestions } = useAiSuggest();
 
@@ -600,6 +600,18 @@ export default function NovelEditor() {
       >
         <Keyboard size={20} />
       </button>
+
+      <button
+        onClick={() => setAiPanelOpen(!isAiPanelOpen)}
+        className={cn(
+          "w-8 h-8 flex items-center justify-center rounded-md transition-all",
+          isAiPanelOpen ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+        )}
+        title={isAiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
+      >
+        <Bot size={20} />
+      </button>
+
       <button
         onClick={handleSpellCheck}
         className={cn(
