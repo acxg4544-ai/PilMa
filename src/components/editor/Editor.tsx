@@ -15,10 +15,11 @@ import { useProjectStore } from '@/store/projectStore';
 import { db } from '@/lib/db';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useAiSuggest } from '@/hooks/useAiSuggest';
-import { ChevronDown, ChevronRight, SquareArrowOutUpRight, Monitor, Smartphone, Maximize, ZoomIn, ZoomOut, Search, Quote, Keyboard, Copy, Check, Pencil } from 'lucide-react';
 import { PipWindow } from '@/components/ui/PipWindow';
 import { SpellCheckPanel } from './SpellCheckPanel';
+import { HistoryPanel } from './HistoryPanel';
 import { cn } from '@/lib/utils';
+import { Clock, ChevronDown, ChevronRight, SquareArrowOutUpRight, Monitor, Smartphone, Maximize, ZoomIn, ZoomOut, Search, Quote, Keyboard, Copy, Check, Pencil } from 'lucide-react';
 
 export default function NovelEditor() {
   const [initialContent, setInitialContent] = useState<any>(null);
@@ -100,6 +101,7 @@ export default function NovelEditor() {
 
   // 맞춤법 검사 상태
   const [isSpellCheckOpen, setIsSpellCheckOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSpellChecking, setIsSpellChecking] = useState(false);
   const [spellCheckResults, setSpellCheckResults] = useState<any[]>([]);
   const [replacedIndices, setReplacedIndices] = useState<Set<number>>(new Set());
@@ -588,6 +590,16 @@ export default function NovelEditor() {
       >
         <Pencil size={20} />
       </button>
+      <button
+        onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+        className={cn(
+          "w-8 h-8 flex items-center justify-center rounded-md transition-all",
+          isHistoryOpen ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+        )}
+        title="로컬 기록 보관소 (자동저장 시 백업)"
+      >
+        <Clock size={20} />
+      </button>
 
       <div className="w-px h-4 border-l border-[var(--border)] opacity-30 mx-1" />
 
@@ -791,7 +803,7 @@ export default function NovelEditor() {
       </div>
 
       {isSpellCheckOpen && (
-        <SpellCheckPanel
+        <SpellCheckPanel 
           results={spellCheckResults}
           isLoading={isSpellChecking}
           onClose={() => setIsSpellCheckOpen(false)}
@@ -800,7 +812,6 @@ export default function NovelEditor() {
           onAddToDictionary={handleAddToDictionary}
           onHover={(idx) => {
             setHighlightedIndex(idx);
-            // 에디터가 아직 생성 전이 아니면 비동기적으로 스크롤 유도
             if (idx !== null && editorRef.current) {
                const editor = editorRef.current;
                const error = spellCheckResults[idx];
@@ -815,7 +826,6 @@ export default function NovelEditor() {
                   });
                   if (foundPos !== -1) {
                      editor.commands.setTextSelection({ from: foundPos, to: foundPos + textToFind.length });
-                     // 스크롤 동기화
                      const { view } = editor;
                      const dom = view.nodeDOM(foundPos) || view.domAtPos(foundPos).node;
                      if (dom instanceof HTMLElement) {
@@ -830,6 +840,21 @@ export default function NovelEditor() {
           fixedValues={fixedValues}
         />
       )}
+
+      {/* 로컬 기록 패널 */}
+      {isHistoryOpen && currentSceneId && (
+        <HistoryPanel
+          sceneId={currentSceneId}
+          onRestore={(content) => {
+            if (editorRef.current) {
+               editorRef.current.commands.setContent(content);
+               setWordCount(editorRef.current.storage.characterCount.words());
+            }
+          }}
+          onClose={() => setIsHistoryOpen(false)}
+        />
+      )}
+
     </div>
   );
 
