@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Project, db } from '@/lib/db';
 import { useAiStore } from './aiStore';
+import { supabase } from '@/lib/supabase';
 
 interface ProjectState {
   projects: Project[];
@@ -11,6 +12,7 @@ interface ProjectState {
   addProject: (title: string) => Promise<string>;
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  syncProjects: (userId: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -84,5 +86,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await db.ai_cache.where('id').equals(id).delete();
     await db.prompt_presets.where('projectId').equals(id).delete();
     await get().loadProjects();
+  },
+  syncProjects: async (userId) => {
+    try {
+      // Supabase에서 작품 목록 가져오기
+      const { data: remoteProjects, error } = await supabase
+        .from('bnw_projects')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      if (!remoteProjects || remoteProjects.length === 0) return;
+
+      // IndexedDB에 동기화
+      for (const rp of remoteProjects) {
+        const local = await db.projects.get(rp.id);
+        
+        // 로컬에 없거나, 원격의 수정 시간이 더 최신이면 로컬에 반영
+        if (!local || rp.updated_at > local.updatedAt) {
+          await db.projects.put({
+            id: rp.id,
+            title: rp.title,
+            description: rp.description || '',
+            tags: rp.tags || [],
+            isFavorite: rp.is_favorite || false,
+            createdAt: typeof rp.created_at === 'string' ? new Date(rp.created_at).getTime() : rp.created_at,
+            updatedAt: typeof rp.updated_at === 'string' ? new Date(rp.updated_at).getTime() : rp.updated_at,
+          });
+        }
+      }
+
+      await get().loadProjects();
+    } catch (err) {
+      console.error('Failed to sync projects:', err);
+    }
   }
 }));

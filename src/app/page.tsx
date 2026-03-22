@@ -7,15 +7,16 @@ import { NewProjectModal } from '@/components/home/NewProjectModal';
 import { EditProjectModal } from '@/components/home/EditProjectModal';
 import { DeleteConfirmModal } from '@/components/home/DeleteConfirmModal';
 import { useRouter } from 'next/navigation';
-import { Search, LogIn, LogOut, User } from 'lucide-react';
+import { Search, LogIn, LogOut, User, Loader2 } from 'lucide-react';
 import { Project } from '@/lib/db';
 import { useAuth } from '@/hooks/useAuth';
 import { LoginModal } from '@/components/auth/LoginModal';
 
 export default function Home() {
-  const { projects, loadProjects } = useProjectStore();
+  const { projects, loadProjects, syncProjects } = useProjectStore();
   const { user, openLoginModal, signOut } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'updatedAt' | 'title' | 'createdAt'>('updatedAt');
   const [filter, setFilter] = useState<'all' | 'favorite'>('all');
@@ -30,6 +31,18 @@ export default function Home() {
       setSortBy(savedSort);
     }
   }, [loadProjects]);
+
+  // 로그인 시 Supabase와 작품 목록 동기화
+  useEffect(() => {
+    if (user) {
+      const performSync = async () => {
+        setIsSyncing(true);
+        await syncProjects(user.id);
+        setIsSyncing(false);
+      };
+      performSync();
+    }
+  }, [user, syncProjects]);
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value as 'updatedAt' | 'title' | 'createdAt';
@@ -50,9 +63,17 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--bg-base)] w-full flex flex-col items-center">
       {/* Header */}
-      <header className="w-full max-w-[1200px] h-16 flex items-center justify-between px-6 pt-4 shrink-0">
+      <header className="w-full max-w-[1200px] h-16 flex items-center justify-between px-6 pt-4 shrink-0 relative">
         <h1 className="text-2xl font-bold font-serif text-[var(--accent)] tracking-tight">필마 筆魔</h1>
         
+        {/* Sync Indicator */}
+        {isSyncing && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border)] px-3 py-1.5 rounded-full shadow-sm animate-in fade-in zoom-in duration-300">
+            <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
+            <span className="text-[12px] font-medium text-[var(--text-secondary)]">로그인 정보 동기화 중...</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border)] px-3 py-1.5 rounded-lg shadow-sm">
