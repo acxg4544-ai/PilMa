@@ -33,7 +33,7 @@ interface UiState {
   editorPreset: string;
   setEditorPreset: (preset: string) => void;
 
-  // 에디터 줌 레벨 (80 ~ 150)
+  // 에디터 줌 레벨 (80 ~ 250)
   zoomLevel: number;
   setZoomLevel: (level: number) => void;
 
@@ -87,7 +87,7 @@ export const useUiStore = create<UiState>()(
 
       // 줌 레벨 기본값 100
       zoomLevel: 100,
-      setZoomLevel: (level) => set({ zoomLevel: Math.min(150, Math.max(80, level)) }),
+      setZoomLevel: (level) => set({ zoomLevel: Math.min(250, Math.max(80, level)) }),
 
       // 에디팅 옵션 기본값
       smartQuotes: false,
