@@ -53,15 +53,6 @@ export function AiPanel({ onInsert, onRefresh }: AiPanelProps) {
       if (e.key === 'Escape') {
         setAiPanelOpen(false);
       }
-      
-      // 1, 2, 3 키로 선택
-      if (['1', '2', '3'].includes(e.key)) {
-        const index = parseInt(e.key) - 1;
-        if (suggestions[index]) {
-          onInsert(suggestions[index]);
-          setAiPanelOpen(false);
-        }
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

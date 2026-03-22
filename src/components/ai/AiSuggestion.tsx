@@ -28,9 +28,9 @@ export function AiSuggestion({ index, content, isLoading, onClick, onPin, isPinn
 
   return (
     <div
-      onClick={onClick}
+      onDoubleClick={onClick}
       className={cn(
-        "group relative p-3.5 rounded-[12px] border border-[var(--border)] bg-[var(--bg-card)] cursor-pointer transition-all duration-150",
+        "group relative p-3.5 rounded-[12px] border border-[var(--border)] bg-[var(--bg-card)] transition-all duration-150",
         "hover:border-[var(--accent)] hover:-translate-y-[1px] hover:shadow-md",
         "active:translate-y-0 active:shadow-sm"
       )}
@@ -68,8 +68,14 @@ export function AiSuggestion({ index, content, isLoading, onClick, onPin, isPinn
         </p>
       </div>
 
-      <div className="mt-2 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="text-[10px] text-[var(--text-disabled)]">클릭 또는 {index + 1}키</span>
+      <div className="mt-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-[10px] text-[var(--text-disabled)] italic">더블클릭하여 삽입</span>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onClick(); }}
+          className="px-2 py-1 bg-[var(--accent)]/10 text-[var(--accent)] rounded text-[10px] font-bold hover:bg-[var(--accent)] hover:text-white transition-all"
+        >
+          본문에 삽입
+        </button>
       </div>
     </div>
   );
