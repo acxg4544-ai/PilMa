@@ -69,8 +69,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return id;
   },
   updateProject: async (id, data) => {
-    await db.projects.update(id, { ...data, updatedAt: Date.now() });
-    await get().loadProjects();
+    const updatedAt = Date.now();
+    await db.projects.update(id, { ...data, updatedAt });
+    set((state) => ({
+      projects: state.projects
+        .map(p => p.id === id ? { ...p, ...data, updatedAt } : p)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+    }));
   },
   deleteProject: async (id) => {
     await db.projects.delete(id);
@@ -85,7 +90,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await db.volumes.where('projectId').equals(id).delete();
     await db.ai_cache.where('id').equals(id).delete();
     await db.prompt_presets.where('projectId').equals(id).delete();
-    await get().loadProjects();
+    
+    set((state) => ({
+      projects: state.projects.filter(p => p.id !== id),
+      currentProjectId: state.currentProjectId === id ? null : state.currentProjectId
+    }));
   },
   syncProjects: async (userId) => {
     try {

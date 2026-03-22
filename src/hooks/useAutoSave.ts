@@ -16,13 +16,20 @@ export function useAutoSave() {
 
     try {
       setSaveStatus('saving');
+      const now = Date.now();
       await db.scenes.update(currentSceneId, {
         projectId: currentProjectId || undefined,
         content,
         wordCount,
         plot,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
+
+      // 프로젝트 최근 수정 시간 갱신 (홈 화면 정렬용)
+      if (currentProjectId) {
+        await db.projects.update(currentProjectId, { updatedAt: now });
+      }
+
       setSaveStatus('saved');
     } catch (error) {
       console.error('AutoSave Error:', error);

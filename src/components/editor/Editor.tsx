@@ -218,7 +218,7 @@ export default function NovelEditor() {
     if (editorRef.current) {
       const text = editorRef.current.getText();
       const content = editorRef.current.getJSON();
-      const count = text.replace(/\s+/g, '').length;
+      const count = text.length; // 공백 포함
       triggerAutoSave(content, count, newPlot);
     }
   };
@@ -228,7 +228,7 @@ export default function NovelEditor() {
     editorRef.current = editor;
     const text = editor.getText();
     const content = editor.getJSON();
-    const count = text.replace(/\s+/g, '').length;
+    const count = text.length; // 공백 포함
     setWordCount(count);
     triggerAutoSave(content, count, plotRef.current);
   }, [setWordCount, triggerAutoSave]);
