@@ -115,23 +115,31 @@ export function Binder() {
         if (!overCh) return;
 
         if (activeCh.volumeId === overCh.volumeId) {
+          // 같은 볼륨 내 순서 변경
           const vChs = chapters!.filter(c => c.volumeId === activeCh.volumeId);
           const oldIndex = vChs.findIndex(c => c.id === activeId);
           const newIndex = vChs.findIndex(c => c.id === targetOverId);
-          const newChs = arrayMove(vChs, oldIndex, newIndex);
-          await Promise.all(newChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+          if (oldIndex !== -1 && newIndex !== -1) {
+            const newChs = arrayMove(vChs, oldIndex, newIndex);
+            await Promise.all(newChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+          }
         } else {
           // 다른 볼륨의 챕터 위로 드롭 => 소속 변경 및 순서 삽입
           const vChs = chapters!.filter(c => c.volumeId === overCh.volumeId);
           const targetIndex = vChs.findIndex(c => c.id === targetOverId);
-          vChs.splice(targetIndex, 0, activeCh);
-          await db.chapters.update(activeId, { volumeId: overCh.volumeId });
-          await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+          if (targetIndex !== -1) {
+            vChs.splice(targetIndex, 0, activeCh);
+            await db.chapters.update(activeId, { volumeId: overCh.volumeId });
+            await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+          }
         }
       } else if (targetOverType === 'vol') {
-        const vChs = chapters!.filter(c => c.volumeId === targetOverId);
-        const maxOrder = vChs.length > 0 ? Math.max(...vChs.map(c => c.order)) : 0;
-        await db.chapters.update(activeId, { volumeId: targetOverId, order: maxOrder + 1 });
+        // 볼륨 위로 직접 드롭 => 소속 변경 및 마지막으로 이동
+        await db.chapters.update(activeId, { volumeId: targetOverId, order: 9999 });
+        // 다시 순서 정렬
+        const vChs = await db.chapters.where('volumeId').equals(targetOverId).toArray();
+        vChs.sort((a, b) => a.order - b.order);
+        await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
       }
       return;
     }
@@ -227,10 +235,19 @@ export function Binder() {
           opacity: 0.5 !important;
         }
         
-        /* 볼륨 간 드래그 시 파란 라인 표시용 (isOver 스타일 덮어쓰기) */
+        /* 드래그 오버 시 파란 라인 표시용 (isOver 스타일 보강) */
+        /* 모든 binder item에 대해 isOver 시 ring 대신 border를 확실히 보여줍니다. */
         .ring-2.ring-\\[var\\(--accent\\)\\] {
           border: 2px solid var(--accent) !important;
-          box-shadow: none !important;
+          box-shadow: 0 0 0 1px var(--bg-base) !important;
+          border-radius: 6px !important;
+          outline: none !important;
+          ring: none !important;
+        }
+        
+        /* 씬(level 2) 항목도 isOver 시 강조되도록 강제 주입 */
+        [data-type="scene"].ring-2 {
+           border: 2px solid var(--accent) !important;
         }
       `}</style>
       
@@ -306,6 +323,7 @@ export function Binder() {
                                     icon={scene.icon}
                                     level={2}
                                     wordCount={scene.wordCount}
+                                    data-type="scene" /* CSS 선택자용 */
                                   />
                                 ))}
                               </SortableContext>
