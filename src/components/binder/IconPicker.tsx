@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { db } from '@/lib/db';
 
@@ -16,6 +17,12 @@ const ICONS = [
 
 export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconPickerProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,16 +64,21 @@ export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconP
     style.left = rect.left + 'px';
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       ref={popoverRef}
-      className="absolute z-[10000] w-48 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl p-2 select-none"
+      className="z-[999] w-48 bg-[var(--bg-card)] rounded-[8px] p-2 select-none"
       style={{
-        top: triggerRef.current ? Math.min(triggerRef.current.getBoundingClientRect().bottom, window.innerHeight - 150) : 0,
+        border: '1px solid var(--border)',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+        top: triggerRef.current ? Math.min(triggerRef.current.getBoundingClientRect().bottom + 4, window.innerHeight - 150) : 0,
         left: triggerRef.current ? Math.max(8, Math.min(triggerRef.current.getBoundingClientRect().left, window.innerWidth - 200)) : 0,
         position: 'fixed'
       }}
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="text-[11px] text-[var(--text-disabled)] mb-2 px-1 font-semibold tracking-wider">아이콘 변경</div>
       <div className="grid grid-cols-4 gap-1">
@@ -90,6 +102,7 @@ export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconP
       >
         기본 아이콘으로 복구
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }

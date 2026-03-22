@@ -55,6 +55,8 @@ export function Binder() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const activeSensors = isRenamingId ? [] : sensors;
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -210,18 +212,18 @@ export function Binder() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       <style>{`
-        /* 모든 BinderItem의 텍스트 색상을 기본적으로 밝게 보장하고, opacity 1을 강제함 */
-        .group.flex.items-center.justify-between {
-          color: var(--text-primary) !important;
-        }
-        .group.flex.items-center.justify-between span.truncate {
+        /* 모든 BinderItem의 텍스트 색상을 항상 기본적으로 밝게 보장하고, opacity 1을 강제함 */
+        .group,
+        .group span.truncate,
+        .group .flex {
           opacity: 1 !important;
           color: var(--text-primary) !important;
         }
         
-        /* Drag 중인 요소는 dnd-kit가 inline style로 opacity 등을 설정함. 
-           명확하게 투명도 0.5 적용되도록 보장 */
-        div[style*="opacity: 0.5"] .group {
+        /* Drag 중인 요소는 dnd-kit가 transform 등을 부여함. 
+           정확히 드래그 중인(opacity가 인라인으로 세팅된) 요소의 하위들만 투명도 적용되도록 보장 */
+        div[style*="opacity: 0.5"] > .group,
+        div[style*="opacity: 0.5"] .group span.truncate {
           opacity: 0.5 !important;
         }
         
@@ -256,7 +258,7 @@ export function Binder() {
       {/* 스크롤 가능한 트리 영역 */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
         <DndContext 
-          sensors={sensors}
+          sensors={activeSensors}
           collisionDetection={pointerWithin}
           onDragEnd={handleDragEnd}
         >
@@ -266,56 +268,54 @@ export function Binder() {
               const isVolumeExpanded = expandedIds.has(volume.id);
               
               return (
-                <div key={volume.id}>
-                  <BinderItem
-                    id={volume.id}
-                    type="volume"
-                    title={volume.title}
-                    level={0}
-                    icon={volume.icon}
-                    isExpanded={isVolumeExpanded}
-                    wordCount={getVolumeWordCount(volume.id)}
-                  >
-                    <div>
-                      <SortableContext items={volumeChapters.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                        {volumeChapters.map((chapter) => {
-                          const chapterScenes = scenes?.filter(s => s.chapterId === chapter.id) || [];
-                          const isChapterExpanded = expandedIds.has(chapter.id);
-                          
-                          return (
-                            <div key={chapter.id}>
-                              <BinderItem
-                                id={chapter.id}
-                                type="chapter"
-                                title={chapter.title}
-                                level={1}
-                                icon={chapter.icon}
-                                isExpanded={isChapterExpanded}
-                                wordCount={getChapterWordCount(chapter.id)}
-                              >
-                                <div>
-                                  <SortableContext items={chapterScenes.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                                    {chapterScenes.map((scene) => (
-                                      <BinderItem
-                                        key={scene.id}
-                                        id={scene.id}
-                                        type="scene"
-                                        title={scene.title}
-                                        icon={scene.icon}
-                                        level={2}
-                                        wordCount={scene.wordCount}
-                                      />
-                                    ))}
-                                  </SortableContext>
-                                </div>
-                              </BinderItem>
+                <BinderItem
+                  key={volume.id}
+                  id={volume.id}
+                  type="volume"
+                  title={volume.title}
+                  level={0}
+                  icon={volume.icon}
+                  isExpanded={isVolumeExpanded}
+                  wordCount={getVolumeWordCount(volume.id)}
+                >
+                  <div>
+                    <SortableContext items={volumeChapters.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                      {volumeChapters.map((chapter) => {
+                        const chapterScenes = scenes?.filter(s => s.chapterId === chapter.id) || [];
+                        const isChapterExpanded = expandedIds.has(chapter.id);
+                        
+                        return (
+                          <BinderItem
+                            key={chapter.id}
+                            id={chapter.id}
+                            type="chapter"
+                            title={chapter.title}
+                            level={1}
+                            icon={chapter.icon}
+                            isExpanded={isChapterExpanded}
+                            wordCount={getChapterWordCount(chapter.id)}
+                          >
+                            <div>
+                              <SortableContext items={chapterScenes.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                                {chapterScenes.map((scene) => (
+                                  <BinderItem
+                                    key={scene.id}
+                                    id={scene.id}
+                                    type="scene"
+                                    title={scene.title}
+                                    icon={scene.icon}
+                                    level={2}
+                                    wordCount={scene.wordCount}
+                                  />
+                                ))}
+                              </SortableContext>
                             </div>
-                          );
-                        })}
-                      </SortableContext>
-                    </div>
-                  </BinderItem>
-                </div>
+                          </BinderItem>
+                        );
+                      })}
+                    </SortableContext>
+                  </div>
+                </BinderItem>
               );
             })}
           </SortableContext>
