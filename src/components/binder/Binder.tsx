@@ -344,7 +344,7 @@ export function Binder() {
       <div className="p-3 border-t border-[var(--divider)]">
         <button 
           onClick={addVolume}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[var(--border)] hover:border-[var(--accent)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-all w-full justify-center"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-dashed border-[var(--border)] hover:border-[var(--accent)] text-[12px] font-medium text-[var(--text-primary)] opacity-70 hover:opacity-100 hover:text-[var(--accent)] transition-all w-full justify-center"
         >
           <FolderPlus size={14} />
           <span>새 권 추가</span>

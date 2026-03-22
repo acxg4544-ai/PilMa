@@ -51,7 +51,7 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    paddingLeft: level === 0 ? '8px' : level === 1 ? '24px' : '40px',
+    paddingLeft: level === 0 ? '4px' : level === 1 ? '20px' : '36px',
     opacity: isDragging ? 0.5 : 1,
     scale: isDragging ? '1.02' : '1',
     zIndex: isDragging ? 999 : 'auto',
@@ -161,14 +161,14 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="select-none relative">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="select-none relative mb-[2px]">
       <div
         onClick={handleClick}
         onDoubleClick={() => setIsRenamingId(id)}
         className={cn(
-          "group flex items-center justify-between h-8 px-2 rounded-lg cursor-pointer transition-all text-[13px]",
+          "group flex items-center justify-between py-2 px-3 rounded-[6px] cursor-pointer transition-all text-[13px]",
           isSelected 
-            ? "bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-[3px] border-l-[var(--accent)]" 
+            ? "bg-[var(--bg-selected)] text-[var(--text-primary)] border-l-[3px] border-l-[var(--accent)] font-semibold" 
             : "border-l-[3px] border-l-transparent hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
           isOver && type !== 'scene' && "ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--bg-base)]"
         )}

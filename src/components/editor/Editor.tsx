@@ -381,81 +381,85 @@ export default function NovelEditor() {
 
   const controlsBar = (
     <div className={cn(
-      "flex items-center justify-end gap-2 z-30 px-2 shrink-0",
-      editorPipMode ? "w-full py-2 bg-[var(--bg-card)]/50 border-b border-[var(--border)] mb-0 sticky top-0" : "w-full"
+      "flex items-center justify-end gap-3 z-30 px-4 py-2 shrink-0 border-b border-[var(--border)] bg-[var(--bg-card)]",
+      editorPipMode ? "w-full mb-0 sticky top-0" : "w-full rounded-t-xl"
     )}>
       {/* 에디팅 옵션 토글 */}
-      <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-0.5 shadow-sm mr-1">
+      <div className="flex items-center gap-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-1 shadow-sm">
         <button
           onClick={() => setSmartQuotes(!smartQuotes)}
           className={cn(
-            "w-7 h-7 flex items-center justify-center rounded-full transition-all",
+            "w-8 h-8 flex items-center justify-center rounded-full transition-all",
             smartQuotes ? "text-[var(--accent)] bg-[var(--accent)]/10" : "text-[var(--text-disabled)] hover:text-[var(--text-secondary)]"
           )}
           title={`스마트 따옴표: ${smartQuotes ? 'ON' : 'OFF'}`}
         >
-          <Quote size={13} />
+          <Quote size={14} />
         </button>
         <button
           onClick={() => setTypewriterMode(!typewriterMode)}
           className={cn(
-            "w-7 h-7 flex items-center justify-center rounded-full transition-all",
+            "w-8 h-8 flex items-center justify-center rounded-full transition-all",
             typewriterMode ? "text-[var(--accent)] bg-[var(--accent)]/10" : "text-[var(--text-disabled)] hover:text-[var(--text-secondary)]"
           )}
           title={`타입라이터 모드: ${typewriterMode ? 'ON' : 'OFF'}`}
         >
-          <Keyboard size={13} />
+          <Keyboard size={14} />
         </button>
         <button
           onClick={handleSpellCheck}
           className={cn(
-            "w-7 h-7 flex items-center justify-center rounded-full transition-all",
+            "w-8 h-8 flex items-center justify-center rounded-full transition-all",
             isSpellCheckOpen ? "text-[var(--accent)] bg-[var(--accent)]/10" : "text-[var(--text-disabled)] hover:text-[var(--text-secondary)]"
           )}
           title="맞춤법 검사 실행"
         >
-          <Pencil size={13} />
+          <Pencil size={14} />
         </button>
       </div>
 
+      <div className="w-px h-5 bg-[var(--divider)] mx-1" />
+
       {/* 줌 컨트롤 */}
-      <div className="flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-1 py-0.5 shadow-sm">
+      <div className="flex items-center gap-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-1 shadow-sm">
         <button 
           onClick={() => setZoomLevel(zoomLevel - 10)}
-          className="w-7 h-7 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          className="w-8 h-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
           title="축소 (Ctrl + -)"
         >
-          <ZoomOut size={14} />
+          <ZoomOut size={15} />
         </button>
         <button 
           onClick={() => setZoomLevel(100)}
-          className="px-2 text-[11px] font-bold text-[var(--accent)] hover:underline min-w-[45px] text-center"
+          className="px-2 text-[12px] font-bold text-[var(--accent)] hover:underline min-w-[45px] text-center"
           title="100% 리셋 (Ctrl + 0)"
         >
           {zoomLevel}%
         </button>
         <button 
           onClick={() => setZoomLevel(zoomLevel + 10)}
-          className="w-7 h-7 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          className="w-8 h-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
           title="확대 (Ctrl + =)"
         >
-          <ZoomIn size={14} />
+          <ZoomIn size={15} />
         </button>
       </div>
+
+      <div className="w-px h-5 bg-[var(--divider)] mx-1" />
 
       {/* 프리셋 드롭다운 */}
       <div className="relative" ref={presetRef}>
         <button
           onClick={() => setIsPresetOpen(!isPresetOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-[12px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all shadow-sm"
         >
           <span className="opacity-70">{isMobileView ? '📱' : currentPreset.id === 'wide' ? '📐' : '💻'}</span>
           <span>{currentPreset.name}</span>
-          <ChevronDown size={14} className={cn("transition-transform", isPresetOpen && "rotate-180")} />
+          <ChevronDown size={14} className={cn("transition-transform duration-200", isPresetOpen && "rotate-180")} />
         </button>
 
         {isPresetOpen && (
-          <div className="absolute top-full mt-2 right-0 w-48 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="absolute top-full mt-2 right-0 w-48 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
             <div className="px-3 py-2 text-[10px] font-bold text-[var(--text-disabled)] uppercase tracking-wider">미리보기 프리셋</div>
             {presets.map((p) => (
               <button
@@ -472,7 +476,7 @@ export default function NovelEditor() {
                 <div className="flex items-center gap-2.5">
                   <span className="opacity-60">{p.icon}</span>
                   <div className="flex flex-col">
-                    <span className="text-[13px] font-semibold leading-none mb-1">{p.name}</span>
+                    <span className="text-[13px] font-bold leading-none mb-1">{p.name}</span>
                     <span className="text-[10px] opacity-50">{p.description}</span>
                   </div>
                 </div>
@@ -483,14 +487,16 @@ export default function NovelEditor() {
         )}
       </div>
 
+      <div className="w-px h-5 bg-[var(--divider)] mx-1" />
+
       {/* PIP 버튼 (메인 모드에서만 표시) */}
       {!editorPipMode && (
         <button
           onClick={() => setEditorPipMode(true)}
-          className="flex w-9 h-9 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-all rounded-full bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)] shadow-sm"
+          className="flex w-10 h-10 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-all rounded-full bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)] shadow-sm"
           title="플로팅(PIP) 모드로 분리"
         >
-          <SquareArrowOutUpRight size={15} />
+          <SquareArrowOutUpRight size={16} />
         </button>
       )}
 
@@ -498,12 +504,12 @@ export default function NovelEditor() {
       <button
         onClick={handleCopyText}
         className={cn(
-          "flex w-9 h-9 items-center justify-center transition-all rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-sm",
+          "flex w-10 h-10 items-center justify-center transition-all rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-sm",
           isCopied ? "text-[var(--accent)] border-[var(--accent)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]"
         )}
         title="본문 복사 (순수 텍스트)"
       >
-        {isCopied ? <Check size={15} /> : <Copy size={15} />}
+        {isCopied ? <Check size={16} /> : <Copy size={16} />}
       </button>
     </div>
   );
@@ -521,7 +527,7 @@ export default function NovelEditor() {
       <div 
         className={cn(
           "w-full bg-[var(--bg-editor)] border border-[var(--border)] rounded-xl mx-auto relative overflow-visible flex flex-col transition-all duration-500 ease-in-out", 
-          editorPipMode ? "min-h-full flex-1" : "min-h-[85vh] shadow-sm",
+          editorPipMode ? "min-h-full flex-1" : "min-h-[85vh] shadow-[0_4px_20px_rgba(0,0,0,0.08)]",
           isMobileView && "rounded-[24px] border-2 border-[var(--border)] shadow-2xl" // PIP 여부 상관없이 모바일뷰면 프레임 적용
         )} 
         style={{ 
@@ -553,9 +559,9 @@ export default function NovelEditor() {
           <div className="mb-4">
             <button 
               onClick={() => setIsPlotOpen(!isPlotOpen)}
-              className="flex items-center gap-1.5 text-[14px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors w-full text-left"
+              className="flex items-center border-b border-transparent hover:border-[var(--divider)] gap-1.5 text-[14px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all py-1 w-full text-left"
             >
-              {isPlotOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <ChevronRight size={16} className={cn("transition-transform duration-200", isPlotOpen && "rotate-90")} />
               <span>📋 이번 회차 플롯 ({currentScene?.title || "제목 없음"})</span>
             </button>
             {isPlotOpen && (
@@ -563,10 +569,10 @@ export default function NovelEditor() {
                 value={plot}
                 onChange={handlePlotChange}
                 placeholder="예시: 주인공이 조카의 담임을 만남 → 담임이 호감을 보임 → 주인공 당황&#13;&#10;(플롯을 추가하세요...)"
-                className="mt-2 w-full min-h-[60px] max-h-[150px] bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg p-3 text-[14px] text-[var(--text-primary)] font-pretendard resize-y focus:outline-none focus:border-[var(--accent)] transition-colors"
+                className="mt-2 w-full min-h-[80px] max-h-[150px] bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg p-3 text-[14px] text-[var(--text-primary)] font-pretendard animate-in fade-in slide-in-from-top-1 duration-200 resize-y focus:outline-none focus:border-[var(--accent)] transition-colors"
               />
             )}
-            <div className="mt-4 h-px bg-[var(--divider)] w-full" />
+            {!isPlotOpen && <div className="mt-2 h-px bg-[var(--divider)] opacity-50 w-full" />}
           </div>
 
           <div className="flex-1 min-h-0">
@@ -577,7 +583,8 @@ export default function NovelEditor() {
                 extensions={[
                   StarterKit,
                   Placeholder.configure({
-                    placeholder: "이야기를 시작하세요...",
+                    placeholder: "이야기를 시작하세요....",
+                    emptyEditorClass: "is-editor-empty",
                   }),
                   CharacterCount,
                   // 스마트 따옴표 InputRule 직접 추가
@@ -591,8 +598,23 @@ export default function NovelEditor() {
                 onUpdate={({ editor }) => handleUpdate(editor)}
                 onSelectionUpdate={handleSelectionUpdate}
                 onCreate={({ editor }) => { editorRef.current = editor; }}
-                className="novel-editor-wrapper"
+                className="novel-editor-wrapper prose-lg focus:outline-none"
               />
+              <style jsx global>{`
+                .is-editor-empty:before {
+                  content: attr(data-placeholder);
+                  float: left;
+                  color: var(--text-disabled);
+                  pointer-events: none;
+                  height: 0;
+                  font-style: italic;
+                  font-size: 18px;
+                }
+                .novel-editor-wrapper .ProseMirror {
+                   min-height: 200px;
+                   outline: none !important;
+                }
+              `}</style>
             </EditorRoot>
           </div>
 

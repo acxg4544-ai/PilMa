@@ -63,8 +63,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--bg-base)] w-full flex flex-col items-center">
       {/* Header */}
-      <header className="w-full max-w-[1200px] h-16 flex items-center justify-between px-6 pt-4 shrink-0 relative">
-        <h1 className="text-2xl font-bold font-serif text-[var(--accent)] tracking-tight">필마 筆魔</h1>
+      <header className="w-full max-w-[1200px] h-20 flex items-center justify-between px-6 shrink-0 relative border-b border-[var(--border)]">
+        <div className="flex flex-col">
+          <h1 className="text-[32px] font-bold font-serif text-[var(--accent)] tracking-tight leading-none">필마 筆魔</h1>
+          <span className="text-[14px] text-[var(--text-secondary)] mt-1 font-medium">웹소설 전용 에디터</span>
+        </div>
         
         {/* Sync Indicator */}
         {isSyncing && (
@@ -107,7 +110,7 @@ export default function Home() {
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-[var(--accent)] hover:opacity-90 text-[var(--bg-base)] px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+            className="bg-[var(--accent)] hover:brightness-110 text-[var(--bg-base)] px-5 py-2 rounded-[24px] text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
           >
             <span className="text-lg leading-none">+</span> 새 작품
           </button>
@@ -142,17 +145,17 @@ export default function Home() {
           <div className="flex items-center gap-6 self-start sm:self-auto w-full sm:w-auto overflow-x-auto">
             <button
               onClick={() => setFilter('all')}
-              className={`pb-1 text-[14px] font-semibold transition-colors relative whitespace-nowrap ${filter === 'all' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              className={`pb-1 text-[15px] transition-colors relative whitespace-nowrap ${filter === 'all' ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium'}`}
             >
               모든 작품 <span className="text-[12px] opacity-70 ml-1">({projects.length})</span>
-              {filter === 'all' && <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-[var(--accent)]" />}
+              {filter === 'all' && <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-[var(--accent)] rounded-full" />}
             </button>
             <button
               onClick={() => setFilter('favorite')}
-              className={`pb-1 text-[14px] font-semibold transition-colors relative whitespace-nowrap ${filter === 'favorite' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              className={`pb-1 text-[15px] transition-colors relative whitespace-nowrap ${filter === 'favorite' ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium'}`}
             >
               즐겨찾기 <span className="text-[12px] opacity-70 ml-1">({projects.filter(p => p.isFavorite).length})</span>
-              {filter === 'favorite' && <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-[var(--accent)]" />}
+              {filter === 'favorite' && <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-[var(--accent)] rounded-full" />}
             </button>
           </div>
 
@@ -205,7 +208,7 @@ export default function Home() {
         ) : (
           <div 
             className="grid gap-[20px] pb-20"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}
           >
             {filteredProjects.map(project => (
               <ProjectCard 

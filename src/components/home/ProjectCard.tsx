@@ -166,10 +166,10 @@ export function ProjectCard({
   return (
     <div 
       onClick={onClick}
-      className="relative w-full aspect-[2/3] bg-gradient-to-br from-[#1A2A22] to-[#0A1A12] border border-[var(--border)] rounded-[12px] overflow-hidden cursor-pointer transition-all duration-300 hover:border-[var(--accent)] hover:-translate-y-1 hover:shadow-2xl group flex flex-col justify-end"
+      className="relative w-full aspect-[2/3] border border-[var(--border)] rounded-[12px] overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:border-[var(--accent)] hover:scale-[1.03] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] group flex flex-col justify-end"
     >
       {/* Background Image / Placeholder */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1A3A22] to-[#0A1A12]">
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-[var(--bg-editor)] to-[var(--bg-hover)]">
         {project.coverUrl && !imageError ? (
           <Image 
             src={project.coverUrl} 
@@ -180,8 +180,9 @@ export function ProjectCard({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center opacity-40 mix-blend-overlay">
-            <ImageIcon size={48} className="mb-2 text-white/80" />
+          <div className="w-full h-full flex flex-col items-center justify-center">
+            <ImageIcon size={48} className="mb-2 text-[var(--text-primary)] opacity-30" />
+            <span className="text-[12px] text-[var(--text-primary)] opacity-30 font-medium tracking-tight">표지를 추가해보세요</span>
           </div>
         )}
       </div>
