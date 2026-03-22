@@ -9,13 +9,15 @@ import { cn } from '@/lib/utils';
 import { CheckCircle, Clock, LogOut, LogIn, ArrowLeft } from 'lucide-react';
 import { AiSettings } from '@/components/ai/AiSettings';
 import { SummaryUploader } from '@/components/ai/SummaryUploader';
+import { useAiStore } from '@/store/aiStore';
 import { useRouter } from 'next/navigation';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useProjectStore } from '@/store/projectStore';
 
 export function Header() {
-  const { isSidebarOpen, wordCount, saveStatus } = useUiStore();
+  const { isSidebarOpen, wordCount, saveStatus, aiPanelWidth, aiPanelPipMode } = useUiStore();
+  const { isAiPanelOpen } = useAiStore();
   const { user, signOut, openLoginModal, isLoading } = useAuth();
   const router = useRouter();
   const currentProjectId = useProjectStore(state => state.currentProjectId);
@@ -27,9 +29,12 @@ export function Header() {
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 z-10 flex items-center justify-between h-12 px-5 bg-pm-panel border-b border-pm-divider transition-all duration-300',
+        'fixed top-0 z-10 flex items-center justify-between h-12 px-5 bg-pm-panel border-b border-pm-divider transition-all duration-300',
         isSidebarOpen ? 'left-[260px]' : 'left-0'
       )}
+      style={{
+        right: (isAiPanelOpen && !aiPanelPipMode) ? `${aiPanelWidth}px` : '0px'
+      }}
     >
       {/* 좌측: 홈 버튼 + 프로젝트명 + 저장 상태 */}
       <div className={cn('flex items-center gap-3 transition-all', !isSidebarOpen && 'ml-10')}>

@@ -720,7 +720,7 @@ export default function NovelEditor() {
   );
 
   const editorBody = (
-    <div className="flex flex-col w-full h-full items-center">
+    <div className={cn("flex flex-col w-full items-center", editorPipMode ? "h-auto" : "h-full")}>
       {/* 줌 영향 안 받는 상단 레이어 */}
       {!editorPipMode && (
         <div className="w-full max-w-[760px] z-30">
@@ -731,7 +731,7 @@ export default function NovelEditor() {
       {/* 2. 에디터 본체 (여기에만 줌 적용) */}
       <div 
         className={cn(
-          "w-full bg-[var(--bg-editor)] border border-[var(--border)] rounded-xl mx-auto relative overflow-visible flex flex-col transition-all duration-500 ease-in-out", 
+          "w-full bg-[var(--bg-editor)] border border-[var(--border)] rounded-xl mx-auto relative overflow-hidden flex flex-col transition-all duration-500 ease-in-out", 
           editorPipMode ? "min-h-full flex-1" : "min-h-[85vh] shadow-[0_4px_20px_rgba(0,0,0,0.08)]",
           isMobileView && "rounded-[24px] border-2 border-[var(--border)] shadow-2xl" // PIP 여부 상관없이 모바일뷰면 프레임 적용
         )} 
@@ -743,6 +743,7 @@ export default function NovelEditor() {
           transformOrigin: 'top center',
           flexGrow: 0,
           flexShrink: 0,
+          maxHeight: editorPipMode ? '85vh' : 'none'
         }}
       >
         {/* 모바일 폰 상단 장식 (노치) */}
@@ -757,7 +758,7 @@ export default function NovelEditor() {
 
         {/* 실제 에디팅 영역 (패딩 포함) */}
         <div 
-           className="flex-1 flex flex-col"
+           className={cn("flex-1 flex flex-col", (isMobileView || editorPipMode) && "overflow-y-auto custom-scrollbar")}
            style={{ padding: currentPreset.styles.padding }} // PIP에서도 프리셋 패딩 유지
         >
           {/* 회차 플롯 영역 (패딩 내부) */}

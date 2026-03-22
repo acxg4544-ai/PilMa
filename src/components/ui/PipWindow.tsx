@@ -41,7 +41,9 @@ export function PipWindow({
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${position.w}px`,
-        height: `${position.h}px`,
+        height: 'auto',
+        minHeight: `${minHeight}px`,
+        maxHeight: '85vh',
       }}
     >
       {/* Title Bar */}
@@ -78,7 +80,7 @@ export function PipWindow({
       )}
 
       {/* Content */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-auto relative rounded-b-xl bg-[var(--bg-card)]">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative rounded-b-xl bg-[var(--bg-card)]">
         {children}
       </div>
 
