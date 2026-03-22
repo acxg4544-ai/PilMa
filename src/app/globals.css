@@ -1,0 +1,179 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import "tailwindcss";
+
+@theme {
+  /* 폰트 설정 */
+  --font-sans: 'Pretendard', var(--font-sans);
+  --font-pretendard: 'Pretendard', var(--font-sans);
+  --font-noto-serif-kr: var(--font-noto-serif-kr), serif;
+
+  /* 테마 컬러 매핑 (Tailwind에서 바로 사용 가능) */
+  --color-pm-bg: var(--bg-base);
+  --color-pm-panel: var(--bg-sidebar);
+  --color-pm-editor: var(--bg-editor);
+  --color-pm-card: var(--bg-card);
+  --color-pm-hover: var(--bg-hover);
+  --color-pm-selected: var(--bg-selected);
+  --color-pm-accent: var(--accent);
+  --color-pm-accent-hover: var(--accent-hover);
+  --color-pm-text: var(--text-primary);
+  --color-pm-text-sub: var(--text-secondary);
+  --color-pm-text-muted: var(--text-disabled);
+  --color-pm-border: var(--border);
+  --color-pm-divider: var(--divider);
+  --color-pm-danger: var(--danger);
+  --color-pm-success: var(--success);
+}
+
+/* ═══════════════════════════════════════
+   필마 테마 시스템 (v3 - 불릿프루프)
+   ═══════════════════════════════════════ */
+
+/* 1. 그린 테마 (기본 테마 및 폴백)
+   최하위 우선순위(:root)로 설정
+*/
+:root {
+  --bg-base:        #d6e5d0;
+  --bg-sidebar:     #c8d9c2;
+  --bg-editor:      #deecd8;
+  --bg-card:        #e6f0e2;
+  --bg-hover:       #bdd1b6;
+  --bg-selected:    #aec5a7;
+  --accent:         #4a8c5c;
+  --accent-hover:   #3d7a4e;
+  --text-primary:   #2a3a2a;
+  --text-secondary: #5a6e5a;
+  --text-disabled:  #8a9e8a;
+  --border:         #b8ccb2;
+  --divider:        #c2d4bc;
+  --danger:         #c44a4a;
+  --success:        #4a8c5c;
+  --scrollbar-thumb: #9ab894;
+  --scrollbar-track: #d0e0ca;
+  color-scheme: light;
+}
+
+/* 명시적 속성 선택 시 우선순위 극대화를 위해 :root 더함 */
+:root[data-theme="green"] {
+  --bg-base:        #d6e5d0;
+  --bg-sidebar:     #c8d9c2;
+  --bg-editor:      #deecd8;
+  --bg-card:        #e6f0e2;
+  --bg-hover:       #bdd1b6;
+  --bg-selected:    #aec5a7;
+  --accent:         #4a8c5c;
+  --accent-hover:   #3d7a4e;
+  --text-primary:   #2a3a2a;
+  --text-secondary: #5a6e5a;
+  --text-disabled:  #8a9e8a;
+  --border:         #b8ccb2;
+  --divider:        #c2d4bc;
+  --danger:         #c44a4a;
+  --success:        #4a8c5c;
+  --scrollbar-thumb: #9ab894;
+  --scrollbar-track: #d0e0ca;
+}
+
+:root[data-theme="dark"] {
+  --bg-base:        #0f0f1a;
+  --bg-sidebar:     #161625;
+  --bg-editor:      #0f0f1a;
+  --bg-card:        #1c1c30;
+  --bg-hover:       #252540;
+  --bg-selected:    #2a2a4a;
+  --accent:         #8b5cf6;
+  --accent-hover:   #7c4fe6;
+  --text-primary:   #e2e2e8;
+  --text-secondary: #8888a0;
+  --text-disabled:  #555570;
+  --border:         #2a2a45;
+  --divider:        #2a2a40;
+  --danger:         #ef4444;
+  --success:        #22c55e;
+  --scrollbar-thumb: #8b5cf6;
+  --scrollbar-track: #2a2a40;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg-base:        #fafafa;
+  --bg-sidebar:     #f0f0f0;
+  --bg-editor:      #ffffff;
+  --bg-card:        #ffffff;
+  --bg-hover:       #e8e8e8;
+  --bg-selected:    #e0e0e0;
+  --accent:         #6366f1;
+  --accent-hover:   #4f52e0;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #666666;
+  --text-disabled:  #aaaaaa;
+  --border:         #e0e0e0;
+  --divider:        #ebebeb;
+  --danger:         #ef4444;
+  --success:        #22c55e;
+  --scrollbar-thumb: #c8c8c8;
+  --scrollbar-track: #f0f0f0;
+  color-scheme: light;
+}
+
+/* 4. 브리지 변수 (연동용)
+   모든 테마 선언 뒤에 위치하여 현재 활성화된 변수값을 상속받습니다.
+*/
+[data-theme] {
+  --pm-bg-base:    var(--bg-base);
+  --pm-bg-panel:   var(--bg-sidebar);
+  --pm-bg-card:    var(--bg-card);
+  --pm-bg-hover:   var(--bg-hover);
+  --pm-accent:     var(--accent);
+  --pm-accent-sub: var(--accent-hover);
+  --pm-text:       var(--text-primary);
+  --pm-text-sub:   var(--text-secondary);
+  --pm-text-muted: var(--text-disabled);
+  --pm-border:     var(--border);
+  --pm-danger:     var(--danger);
+  --pm-success:    var(--success);
+}
+
+/* ═══════════════════════════════════════
+   기본 리셋 및 바디 스타일
+   ═══════════════════════════════════════ */
+body {
+  color: var(--text-primary) !important;
+  background: var(--bg-base) !important;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* 일반 텍스트 색상 상속 강제 (변수 변경 즉시 반영용) */
+* {
+  border-color: var(--border);
+}
+
+/* ═══════════════════════════════════════
+   에디터 본문 스타일 (Novel / TipTap)
+   ═══════════════════════════════════════ */
+div.novel-editor-wrapper {
+  font-family: var(--font-noto-serif-kr);
+  font-size: 18px;
+  line-height: 2.0;
+  color: var(--text-primary);
+  outline: none;
+  min-height: 80vh;
+}
+
+div.novel-editor-wrapper .ProseMirror {
+  outline: none !important;
+  min-height: 80vh;
+  caret-color: var(--accent);
+}
+
+/* 플레이스홀더 */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: "이야기를 시작하세요...";
+  float: left;
+  color: var(--text-disabled);
+  pointer-events: none;
+  height: 0;
+}
