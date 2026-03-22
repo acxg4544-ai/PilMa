@@ -85,9 +85,10 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
       return;
     }
     
-    if (type === 'volume') await db.volumes.update(id, { title: localTitle });
-    else if (type === 'chapter') await db.chapters.update(id, { title: localTitle });
-    else if (type === 'scene') await db.scenes.update(id, { title: localTitle });
+    const now = Date.now();
+    if (type === 'volume') await db.volumes.update(id, { title: localTitle, updatedAt: now });
+    else if (type === 'chapter') await db.chapters.update(id, { title: localTitle, updatedAt: now });
+    else if (type === 'scene') await db.scenes.update(id, { title: localTitle, updatedAt: now });
     
     setIsRenamingId(null);
   };
@@ -135,6 +136,7 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
         volumeId: id,
         title: '새 챕터',
         order: count + 1,
+        updatedAt: Date.now(),
       });
     } else if (type === 'chapter') {
       const count = await db.scenes.where('chapterId').equals(id).count();

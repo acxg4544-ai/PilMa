@@ -71,16 +71,18 @@ export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconP
   }, [onClose, triggerRef]);
 
   const handleSelect = async (icon: string) => {
-    if (type === 'volume') await db.volumes.update(id, { icon });
-    else if (type === 'chapter') await db.chapters.update(id, { icon });
-    else if (type === 'scene') await db.scenes.update(id, { icon });
+    const now = Date.now();
+    if (type === 'volume') await db.volumes.update(id, { icon, updatedAt: now });
+    else if (type === 'chapter') await db.chapters.update(id, { icon, updatedAt: now });
+    else if (type === 'scene') await db.scenes.update(id, { icon, updatedAt: now });
     onClose();
   };
 
   const handleReset = async () => {
-    if (type === 'volume') await db.volumes.update(id, { icon: undefined });
-    else if (type === 'chapter') await db.chapters.update(id, { icon: undefined });
-    else if (type === 'scene') await db.scenes.update(id, { icon: undefined });
+    const now = Date.now();
+    if (type === 'volume') await db.volumes.update(id, { icon: undefined, updatedAt: now });
+    else if (type === 'chapter') await db.chapters.update(id, { icon: undefined, updatedAt: now });
+    else if (type === 'scene') await db.scenes.update(id, { icon: undefined, updatedAt: now });
     onClose();
   };
 

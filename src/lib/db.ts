@@ -17,6 +17,7 @@ export interface Volume {
   title: string;
   order: number;
   icon?: string;
+  updatedAt: number;
 }
 
 export interface Chapter {
@@ -25,6 +26,7 @@ export interface Chapter {
   title: string;
   order: number;
   icon?: string;
+  updatedAt: number;
 }
 
 export interface Scene {
@@ -137,10 +139,10 @@ export class PilMaDatabase extends Dexie {
       text_replacements: 'id, projectId, from, to',
       dictionary: 'id, projectId, word',
     });
-    this.version(7).stores({
+    this.version(8).stores({
       projects: 'id, title, createdAt, updatedAt',
-      volumes: 'id, projectId, title, order, icon',
-      chapters: 'id, volumeId, title, order, icon',
+      volumes: 'id, projectId, title, order, icon, updatedAt',
+      chapters: 'id, volumeId, title, order, icon, updatedAt',
       scenes: 'id, projectId, chapterId, title, order, icon, wordCount, createdAt, updatedAt, plot',
       ai_cache: 'id, projectId, contentHash, geminiFileUri, summary, updatedAt',
       prompt_presets: 'id, projectId, slot, prompt',

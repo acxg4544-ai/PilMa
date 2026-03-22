@@ -23,8 +23,9 @@ export function NewProjectModal({ onClose }: { onClose: () => void }) {
     const chapterId = `chap-${crypto.randomUUID()}`;
     const sceneId = `scene-${crypto.randomUUID()}`;
 
-    await db.volumes.put({ id: volumeId, projectId: id, title: '제1권', order: 1 });
-    await db.chapters.put({ id: chapterId, volumeId: volumeId, title: '제1화', order: 1 });
+    const now = Date.now();
+    await db.volumes.put({ id: volumeId, projectId: id, title: '제1권', order: 1, updatedAt: now });
+    await db.chapters.put({ id: chapterId, volumeId: volumeId, title: '제1화', order: 1, updatedAt: now });
     await db.scenes.put({
       id: sceneId,
       projectId: id,

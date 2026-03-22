@@ -88,7 +88,8 @@ export function Binder() {
           const oldIndex = volumes!.findIndex(v => v.id === activeId);
           const newIndex = volumes!.findIndex(v => v.id === targetOverId);
           const newVols = arrayMove(volumes!, oldIndex, newIndex);
-          await Promise.all(newVols.map((v, i) => db.volumes.update(v.id, { order: i + 1 })));
+          const now = Date.now();
+          await Promise.all(newVols.map((v, i) => db.volumes.update(v.id, { order: i + 1, updatedAt: now })));
         }
       }
       return;
@@ -121,7 +122,8 @@ export function Binder() {
           const newIndex = vChs.findIndex(c => c.id === targetOverId);
           if (oldIndex !== -1 && newIndex !== -1) {
             const newChs = arrayMove(vChs, oldIndex, newIndex);
-            await Promise.all(newChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+            const now = Date.now();
+            await Promise.all(newChs.map((c, i) => db.chapters.update(c.id, { order: i + 1, updatedAt: now })));
           }
         } else {
           // 다른 볼륨의 챕터 위로 드롭 => 소속 변경 및 순서 삽입
@@ -129,17 +131,19 @@ export function Binder() {
           const targetIndex = vChs.findIndex(c => c.id === targetOverId);
           if (targetIndex !== -1) {
             vChs.splice(targetIndex, 0, activeCh);
-            await db.chapters.update(activeId, { volumeId: overCh.volumeId });
-            await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+            const now = Date.now();
+            await db.chapters.update(activeId, { volumeId: overCh.volumeId, updatedAt: now });
+            await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1, updatedAt: now })));
           }
         }
       } else if (targetOverType === 'vol') {
         // 볼륨 위로 직접 드롭 => 소속 변경 및 마지막으로 이동
-        await db.chapters.update(activeId, { volumeId: targetOverId, order: 9999 });
+        const now = Date.now();
+        await db.chapters.update(activeId, { volumeId: targetOverId, order: 9999, updatedAt: now });
         // 다시 순서 정렬
         const vChs = await db.chapters.where('volumeId').equals(targetOverId).toArray();
         vChs.sort((a, b) => a.order - b.order);
-        await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+        await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1, updatedAt: now })));
       }
       return;
     }
@@ -158,19 +162,21 @@ export function Binder() {
           const oldIndex = cScs.findIndex(s => s.id === activeId);
           const newIndex = cScs.findIndex(s => s.id === overId);
           const newScs = arrayMove(cScs, oldIndex, newIndex);
-          await Promise.all(newScs.map((s, i) => db.scenes.update(s.id, { order: i + 1 })));
+          const now = Date.now();
+          await Promise.all(newScs.map((s, i) => db.scenes.update(s.id, { order: i + 1, updatedAt: now })));
         } else {
           // 다른 챕터로 이동
           const cScs = scenes!.filter(s => s.chapterId === overSc.chapterId);
           const targetIndex = cScs.findIndex(s => s.id === overId);
           cScs.splice(targetIndex, 0, activeSc);
-          await db.scenes.update(activeId, { chapterId: overSc.chapterId });
-          await Promise.all(cScs.map((s, i) => db.scenes.update(s.id, { order: i + 1 })));
+          const now = Date.now();
+          await db.scenes.update(activeId, { chapterId: overSc.chapterId, updatedAt: now });
+          await Promise.all(cScs.map((s, i) => db.scenes.update(s.id, { order: i + 1, updatedAt: now })));
         }
       } else if (overType === 'chapter') {
         const cScs = scenes!.filter(s => s.chapterId === overId);
         const maxOrder = cScs.length > 0 ? Math.max(...cScs.map(s => s.order)) : 0;
-        await db.scenes.update(activeId, { chapterId: overId, order: maxOrder + 1 });
+        await db.scenes.update(activeId, { chapterId: overId, order: maxOrder + 1, updatedAt: Date.now() });
       }
       return;
     }
@@ -179,16 +185,18 @@ export function Binder() {
   const addVolume = async () => {
     if (!currentProjectId) return;
     const count = await db.volumes.where('projectId').equals(currentProjectId).count();
+    const now = Date.now();
     await db.volumes.put({
       id: `vol-${crypto.randomUUID()}`,
       projectId: currentProjectId,
       title: '새 권',
       order: count + 1,
+      updatedAt: now,
     });
   };
 
   const updateProjectTitle = async (id: string, newTitle: string) => {
-    await db.projects.update(id, { title: newTitle });
+    await db.projects.update(id, { title: newTitle, updatedAt: Date.now() });
     setIsRenamingId(null);
   };
 
