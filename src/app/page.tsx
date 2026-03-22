@@ -116,6 +116,27 @@ export default function Home() {
 
       {/* Main */}
       <main className="w-full max-w-[1200px] flex-1 px-6 py-8 flex flex-col">
+        {/* Login Promotion Banner */}
+        {!user && (
+          <div className="mb-6 p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] shrink-0">
+                <LogIn size={20} />
+              </div>
+              <div className="flex flex-col">
+                <p className="text-[14px] font-bold text-[var(--text-primary)] leading-tight">더 안전하게 작품을 보관하세요</p>
+                <p className="text-[12px] text-[var(--text-secondary)] mt-1">로그인하면 기기 간 작품 동기화 및 클라우드 백업이 가능합니다.</p>
+              </div>
+            </div>
+            <button 
+              onClick={openLoginModal}
+              className="bg-[var(--accent)] text-white px-4 py-2 rounded-lg text-[13px] font-bold hover:opacity-90 transition-all shrink-0 shadow-sm"
+            >
+              로그인하기
+            </button>
+          </div>
+        )}
+
         {/* Tabs & Search/Sort */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[var(--divider)] mb-8 pb-4">
           <div className="flex items-center gap-6 self-start sm:self-auto w-full sm:w-auto overflow-x-auto">
