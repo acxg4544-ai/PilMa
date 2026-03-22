@@ -6,7 +6,9 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useLiveQuery } from 'dexie-react-hooks';
 import CharacterCount from '@tiptap/extension-character-count';
-import { InputRule } from '@tiptap/core';
+import { InputRule, Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useUiStore } from '@/store/uiStore';
 import { useAiStore } from '@/store/aiStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -61,6 +63,44 @@ export default function NovelEditor() {
   const [fixedValues, setFixedValues] = useState<Record<number, string>>({});
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const [addedToDictIndices, setAddedToDictIndices] = useState<Set<number>>(new Set());
+
+  // 맞춤법 하이라이트 확장을 위한 Decoration
+  const spellCheckHighlightExtension = React.useMemo(() => {
+    return Extension.create({
+      name: 'spellCheckHighlight',
+      addProseMirrorPlugins() {
+        return [
+          new Plugin({
+            key: new PluginKey('spellCheckHighlight'),
+            props: {
+              decorations: (state) => {
+                if (highlightedIndex === null) return null;
+                const error = spellCheckResults[highlightedIndex];
+                if (!error || replacedIndices.has(highlightedIndex) || addedToDictIndices.has(highlightedIndex)) return null;
+                
+                const decorations: Decoration[] = [];
+                const textToFind = error.original;
+                
+                state.doc.descendants((node, pos) => {
+                  if (node.isText && node.text?.includes(textToFind)) {
+                    const localStart = node.text.indexOf(textToFind);
+                    const start = pos + localStart;
+                    const end = start + textToFind.length;
+                    decorations.push(
+                      Decoration.inline(start, end, {
+                        class: 'spellcheck-highlight'
+                      })
+                    );
+                  }
+                });
+                return DecorationSet.create(state.doc, decorations);
+              }
+            }
+          })
+        ];
+      }
+    });
+  }, [highlightedIndex, spellCheckResults, replacedIndices, addedToDictIndices]);
 
   // 텍스트 대치 및 단어장 상태 추가
   const replacements = useLiveQuery(
@@ -715,6 +755,7 @@ export default function NovelEditor() {
                       return [...customSmartQuotes, ...replacementInputRules];
                     },
                   } as any,
+                  spellCheckHighlightExtension,
                 ].filter(Boolean) as any}
                 onUpdate={({ editor }) => {
                    handleUpdate(editor);
