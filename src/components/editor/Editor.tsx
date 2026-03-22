@@ -28,6 +28,7 @@ export default function NovelEditor() {
   const editorRef = useRef<any>(null);
   
   const setWordCount = useUiStore((state) => state.setWordCount);
+  const currentProjectId = useUiStore((state) => state.currentProjectId);
   const currentSceneId = useUiStore((state) => state.currentSceneId);
   const currentScene = useLiveQuery(
     () => (currentSceneId ? db.scenes.get(currentSceneId) : undefined),
@@ -55,6 +56,40 @@ export default function NovelEditor() {
   const presetRef = useRef<HTMLDivElement>(null);
   const prevZoomRef = useRef(zoomLevel);
   const isSyncingSizeRef = useRef(false);
+
+  // 텍스트 대치 및 단어장 상태 추가
+  const replacements = useLiveQuery(
+    () => (currentProjectId ? db.text_replacements.where('projectId').equals(currentProjectId).toArray() : []),
+    [currentProjectId]
+  ) || [];
+
+  const [replaceEnabled, setReplaceEnabled] = useState(true);
+  
+  useEffect(() => {
+    const checkReplaceEnabled = () => {
+      const val = localStorage.getItem('pilma_replace_enabled');
+      setReplaceEnabled(val !== 'false');
+    };
+    checkReplaceEnabled();
+    window.addEventListener('storage', checkReplaceEnabled);
+    return () => window.removeEventListener('storage', checkReplaceEnabled);
+  }, []);
+
+  const replacementInputRules = React.useMemo(() => {
+    if (!replaceEnabled) return [];
+    return replacements.map(rep => {
+      const escapedFrom = rep.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new InputRule({
+        find: new RegExp(`${escapedFrom}$`),
+        handler: ({ state, range }) => {
+          const { tr } = state;
+          const start = range.from;
+          const end = range.to;
+          tr.replaceWith(start, end, state.schema.text(rep.to));
+        }
+      });
+    });
+  }, [replacements, replaceEnabled]);
 
   // 맞춤법 검사 상태
   const [isSpellCheckOpen, setIsSpellCheckOpen] = useState(false);
@@ -291,13 +326,21 @@ export default function NovelEditor() {
     setSpellCheckResults([]);
     setReplacedIndices(new Set());
 
-    const text = editorRef.current.getText();
-    
     try {
+      // 1. 단어장 로드
+      const dictionaryItems = currentProjectId ? 
+        await db.dictionary.where('projectId').equals(currentProjectId).toArray() : [];
+      const dictionaryWords = dictionaryItems.map(d => d.word);
+
+      const text = editorRef.current.getText();
+      
       const response = await fetch('/api/ai/spellcheck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ 
+          text,
+          dictionary: dictionaryWords
+        }),
       });
       const data = await response.json();
       setSpellCheckResults(data.results || []);
@@ -605,11 +648,11 @@ export default function NovelEditor() {
                     emptyEditorClass: "is-editor-empty",
                   }),
                   CharacterCount,
-                  // 스마트 따옴표 InputRule 직접 추가
+                  // 스마트 따옴표 및 사용자 대치 InputRule
                   {
-                    name: 'customSmartQuotes',
+                    name: 'customInputRules',
                     addInputRules() {
-                      return customSmartQuotes;
+                      return [...customSmartQuotes, ...replacementInputRules];
                     },
                   } as any,
                 ].filter(Boolean) as any}

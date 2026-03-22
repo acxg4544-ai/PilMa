@@ -57,6 +57,19 @@ export interface PromptPreset {
   prompt: string;
 }
 
+export interface TextReplacement {
+  id: string;
+  projectId: string;
+  from: string;
+  to: string;
+}
+
+export interface Dictionary {
+  id: string;
+  projectId: string;
+  word: string;
+}
+
 export class PilMaDatabase extends Dexie {
   projects!: Table<Project>;
   volumes!: Table<Volume>;
@@ -64,6 +77,8 @@ export class PilMaDatabase extends Dexie {
   scenes!: Table<Scene>;
   ai_cache!: Table<AiCache>;
   prompt_presets!: Table<PromptPreset>;
+  text_replacements!: Table<TextReplacement>;
+  dictionary!: Table<Dictionary>;
 
   constructor() {
     super('pilma-db');
@@ -102,6 +117,16 @@ export class PilMaDatabase extends Dexie {
       scenes: 'id, projectId, chapterId, title, order, icon, wordCount, createdAt, updatedAt, plot',
       ai_cache: 'id, projectId, contentHash, geminiFileUri, summary, updatedAt',
       prompt_presets: 'id, projectId, slot, prompt',
+    });
+    this.version(6).stores({
+      projects: 'id, title, createdAt, updatedAt',
+      volumes: 'id, projectId, title, order, icon',
+      chapters: 'id, volumeId, title, order, icon',
+      scenes: 'id, projectId, chapterId, title, order, icon, wordCount, createdAt, updatedAt, plot',
+      ai_cache: 'id, projectId, contentHash, geminiFileUri, summary, updatedAt',
+      prompt_presets: 'id, projectId, slot, prompt',
+      text_replacements: 'id, projectId, from, to',
+      dictionary: 'id, projectId, word',
     });
   }
 }
