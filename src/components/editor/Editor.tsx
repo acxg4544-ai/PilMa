@@ -788,49 +788,51 @@ export default function NovelEditor() {
             </EditorRoot>
           </div>
 
-          {/* 맞춤법 검사 패널 - 에디터 카드 하단에 위치 (sticky/absolute 아님, flex 순서로 배치) */}
-          {isSpellCheckOpen && (
-            <SpellCheckPanel
-              results={spellCheckResults}
-              isLoading={isSpellChecking}
-              onClose={() => setIsSpellCheckOpen(false)}
-              onReplace={handleReplace}
-              onRevert={handleRevert}
-              onAddToDictionary={handleAddToDictionary}
-              onHover={(idx) => {
-                setHighlightedIndex(idx);
-                // 에디터가 아직 생성 전이 아니면 비동기적으로 스크롤 유도
-                if (idx !== null && editorRef.current) {
-                   const editor = editorRef.current;
-                   const error = spellCheckResults[idx];
-                   if (error && !replacedIndices.has(idx) && !addedToDictIndices.has(idx)) {
-                      const textToFind = error.original;
-                      let foundPos = -1;
-                      editor.state.doc.descendants((node: any, pos: number) => {
-                        if (foundPos !== -1) return false;
-                        if (node.isText && node.text.includes(textToFind)) {
-                           foundPos = pos + node.text.indexOf(textToFind);
-                        }
-                      });
-                      if (foundPos !== -1) {
-                         editor.commands.setTextSelection({ from: foundPos, to: foundPos + textToFind.length });
-                         // 스크롤 동기화
-                         const { view } = editor;
-                         const dom = view.nodeDOM(foundPos) || view.domAtPos(foundPos).node;
-                         if (dom instanceof HTMLElement) {
-                            dom.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                         }
-                      }
-                   }
-                }
-              }}
-              replacedIndices={replacedIndices}
-              addedToDictIndices={addedToDictIndices}
-              fixedValues={fixedValues}
-            />
           )}
         </div>
       </div>
+
+      {isSpellCheckOpen && (
+        <SpellCheckPanel
+          results={spellCheckResults}
+          isLoading={isSpellChecking}
+          onClose={() => setIsSpellCheckOpen(false)}
+          onReplace={handleReplace}
+          onRevert={handleRevert}
+          onAddToDictionary={handleAddToDictionary}
+          onHover={(idx) => {
+            setHighlightedIndex(idx);
+            // 에디터가 아직 생성 전이 아니면 비동기적으로 스크롤 유도
+            if (idx !== null && editorRef.current) {
+               const editor = editorRef.current;
+               const error = spellCheckResults[idx];
+               if (error && !replacedIndices.has(idx) && !addedToDictIndices.has(idx)) {
+                  const textToFind = error.original;
+                  let foundPos = -1;
+                  editor.state.doc.descendants((node: any, pos: number) => {
+                    if (foundPos !== -1) return false;
+                    if (node.isText && node.text.includes(textToFind)) {
+                       foundPos = pos + node.text.indexOf(textToFind);
+                    }
+                  });
+                  if (foundPos !== -1) {
+                     editor.commands.setTextSelection({ from: foundPos, to: foundPos + textToFind.length });
+                     // 스크롤 동기화
+                     const { view } = editor;
+                     const dom = view.nodeDOM(foundPos) || view.domAtPos(foundPos).node;
+                     if (dom instanceof HTMLElement) {
+                        dom.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                     }
+                  }
+               }
+            }
+          }}
+          replacedIndices={replacedIndices}
+          addedToDictIndices={addedToDictIndices}
+          fixedValues={fixedValues}
+        />
+      )}
+    </div>
     </div>
   );
 
