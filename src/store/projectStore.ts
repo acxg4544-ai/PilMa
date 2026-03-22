@@ -50,7 +50,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   loadProjects: async () => {
     const projects = await db.projects.toArray();
-    projects.sort((a, b) => b.updatedAt - a.updatedAt);
+    projects.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     set({ projects });
   },
   addProject: async (title) => {
@@ -74,10 +74,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) => ({
       projects: state.projects
         .map(p => p.id === id ? { ...p, ...data, updatedAt } : p)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
     }));
   },
   deleteProject: async (id) => {
+    // 1. IndexedDB에서 삭제
     await db.projects.delete(id);
     const vols = await db.volumes.where('projectId').equals(id).toArray();
     for (const v of vols) {
@@ -91,6 +92,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await db.ai_cache.where('id').equals(id).delete();
     await db.prompt_presets.where('projectId').equals(id).delete();
     
+    // 2. Supabase에서 삭제 (로그인 상태인 경우)
+    try {
+      await supabase.from('bnw_projects').delete().eq('id', id);
+    } catch (err) {
+      console.warn('Supabase deletion failed:', err);
+    }
+
     set((state) => ({
       projects: state.projects.filter(p => p.id !== id),
       currentProjectId: state.currentProjectId === id ? null : state.currentProjectId

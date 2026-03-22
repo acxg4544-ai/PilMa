@@ -216,9 +216,13 @@ export default function NovelEditor() {
     setPlot(newPlot);
     plotRef.current = newPlot;
     if (editorRef.current) {
-      const text = editorRef.current.getText();
-      const content = editorRef.current.getJSON();
-      const count = text.length; // 공백 포함
+      const editor = editorRef.current;
+      // getText() without options returns text including spaces. 
+      // blockSeparator '\n' ensures we don't miss newline "characters" if desired, 
+      // but usually for book word count, we just want visible text length including spaces.
+      const text = editor.getText(); 
+      const count = text.length;
+      const content = editor.getJSON();
       triggerAutoSave(content, count, newPlot);
     }
   };
@@ -226,9 +230,11 @@ export default function NovelEditor() {
   const handleUpdate = useCallback((editor: any) => {
     if (!editor) return;
     editorRef.current = editor;
+    
     const text = editor.getText();
+    const count = text.length;
     const content = editor.getJSON();
-    const count = text.length; // 공백 포함
+    
     setWordCount(count);
     triggerAutoSave(content, count, plotRef.current);
   }, [setWordCount, triggerAutoSave]);
