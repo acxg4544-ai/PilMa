@@ -99,19 +99,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!remoteProjects || remoteProjects.length === 0) return;
 
       // IndexedDB에 동기화
-      for (const rp of remoteProjects) {
+      for (const rp of (remoteProjects as any[])) {
         const local = await db.projects.get(rp.id);
         
+        const remoteUpdatedAt = typeof rp.updated_at === 'string' ? new Date(rp.updated_at).getTime() : rp.updated_at;
+        const remoteCreatedAt = typeof rp.created_at === 'string' ? new Date(rp.created_at).getTime() : rp.created_at;
+
         // 로컬에 없거나, 원격의 수정 시간이 더 최신이면 로컬에 반영
-        if (!local || rp.updated_at > local.updatedAt) {
+        if (!local || remoteUpdatedAt > local.updatedAt) {
           await db.projects.put({
             id: rp.id,
             title: rp.title,
             description: rp.description || '',
             tags: rp.tags || [],
             isFavorite: rp.is_favorite || false,
-            createdAt: typeof rp.created_at === 'string' ? new Date(rp.created_at).getTime() : rp.created_at,
-            updatedAt: typeof rp.updated_at === 'string' ? new Date(rp.updated_at).getTime() : rp.updated_at,
+            createdAt: remoteCreatedAt,
+            updatedAt: remoteUpdatedAt,
           });
         }
       }
