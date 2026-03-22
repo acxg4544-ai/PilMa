@@ -47,9 +47,7 @@ export default function ProjectEditorPage() {
         return;
       }
 
-      // 바인더 확장 상태 초기화
-      const binderStore = await import('@/store/binderStore').then(m => m.useBinderStore);
-      binderStore.setState({ expandedIds: new Set() });
+      // 바인더 확장 상태는 유지 (기존 프로젝트 진입 시 리셋 제거)
 
       await setCurrentProject(id);
       setIsReady(true);
