@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useBinderStore } from '@/store/binderStore';
 import { useUiStore } from '@/store/uiStore';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
 
   const isSelected = type === 'scene' && currentSceneId === id;
   const isRenaming = isRenamingId === id;
@@ -220,6 +222,7 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
               </button>
             )}
             <button
+              ref={menuTriggerRef}
               onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
               className={cn(
                 "w-5 h-5 flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]",
@@ -232,17 +235,24 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
         </div>
       </div>
 
-      {/* 드롭다운 메뉴 */}
-      {isMenuOpen && (
+      {/* 드롭다운 메뉴 (Portal 사용) */}
+      {isMenuOpen && menuTriggerRef.current && createPortal(
         <div 
           ref={menuRef}
-          className="absolute right-2 top-8 z-[9999] min-w-[120px] bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 text-xs text-[var(--text-primary)]"
+          className="z-[9999] min-w-[140px] bg-[var(--bg-card)] rounded-lg p-1.5 shadow-2xl"
+          style={{
+            position: 'fixed',
+            border: '1px solid var(--border)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            top: Math.min(menuTriggerRef.current.getBoundingClientRect().bottom + 4, window.innerHeight - 150),
+            left: Math.min(menuTriggerRef.current.getBoundingClientRect().left, window.innerWidth - 160),
+          }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <button 
-            onClick={() => { setIsRenamingId(id); setIsMenuOpen(false); }}
-            className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-hover)] transition-colors rounded-md mx-1"
-            style={{ width: 'calc(100% - 8px)' }}
+            onClick={(e) => { e.stopPropagation(); setIsRenamingId(id); setIsMenuOpen(false); }}
+            className="w-full text-left px-3 py-2 hover:bg-[var(--bg-hover)] transition-colors rounded-md text-xs text-[var(--text-primary)]"
           >
             이름 변경
           </button>
@@ -253,20 +263,19 @@ export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded
               setShowIconPicker(!showIconPicker);
               setIsMenuOpen(false);
             }}
-            className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-hover)] transition-colors rounded-md mx-1"
-            style={{ width: 'calc(100% - 8px)' }}
+            className="w-full text-left px-3 py-2 hover:bg-[var(--bg-hover)] transition-colors rounded-md text-xs text-[var(--text-primary)]"
           >
             아이콘 변경
           </button>
           <div className="h-px bg-[var(--divider)] my-1" />
           <button 
-            onClick={handleDelete}
-            className="w-full text-left px-3 py-1.5 text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors rounded-md mx-1"
-            style={{ width: 'calc(100% - 8px)' }}
+            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+            className="w-full text-left px-3 py-2 text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors rounded-md text-xs"
           >
             삭제
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {showIconPicker && (

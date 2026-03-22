@@ -69,10 +69,10 @@ export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconP
   return createPortal(
     <div
       ref={popoverRef}
-      className="z-[999] w-48 bg-[var(--bg-card)] rounded-[8px] p-2 select-none"
+      className="z-[9999] w-48 bg-[var(--bg-card)] rounded-[8px] p-2 select-none"
       style={{
         border: '1px solid var(--border)',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
         top: triggerRef.current ? Math.min(triggerRef.current.getBoundingClientRect().bottom + 4, window.innerHeight - 150) : 0,
         left: triggerRef.current ? Math.max(8, Math.min(triggerRef.current.getBoundingClientRect().left, window.innerWidth - 200)) : 0,
         position: 'fixed'
