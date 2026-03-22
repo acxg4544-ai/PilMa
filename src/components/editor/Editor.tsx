@@ -787,8 +787,6 @@ export default function NovelEditor() {
               `}</style>
             </EditorRoot>
           </div>
-
-          )}
         </div>
       </div>
 
@@ -832,7 +830,6 @@ export default function NovelEditor() {
           fixedValues={fixedValues}
         />
       )}
-    </div>
     </div>
   );
 
