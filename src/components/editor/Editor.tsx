@@ -64,44 +64,6 @@ export default function NovelEditor() {
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
   const [addedToDictIndices, setAddedToDictIndices] = useState<Set<number>>(new Set());
 
-  // 맞춤법 하이라이트 확장을 위한 Decoration
-  const spellCheckHighlightExtension = React.useMemo(() => {
-    return Extension.create({
-      name: 'spellCheckHighlight',
-      addProseMirrorPlugins() {
-        return [
-          new Plugin({
-            key: new PluginKey('spellCheckHighlight'),
-            props: {
-              decorations: (state) => {
-                if (highlightedIndex === null) return null;
-                const error = spellCheckResults[highlightedIndex];
-                if (!error || replacedIndices.has(highlightedIndex) || addedToDictIndices.has(highlightedIndex)) return null;
-                
-                const decorations: Decoration[] = [];
-                const textToFind = error.original;
-                
-                state.doc.descendants((node, pos) => {
-                  if (node.isText && node.text?.includes(textToFind)) {
-                    const localStart = node.text.indexOf(textToFind);
-                    const start = pos + localStart;
-                    const end = start + textToFind.length;
-                    decorations.push(
-                      Decoration.inline(start, end, {
-                        class: 'spellcheck-highlight'
-                      })
-                    );
-                  }
-                });
-                return DecorationSet.create(state.doc, decorations);
-              }
-            }
-          })
-        ];
-      }
-    });
-  }, [highlightedIndex, spellCheckResults, replacedIndices, addedToDictIndices]);
-
   // 텍스트 대치 및 단어장 상태 추가
   const replacements = useLiveQuery(
     () => (currentProjectId ? db.text_replacements.where('projectId').equals(currentProjectId).toArray() : []),
@@ -141,6 +103,44 @@ export default function NovelEditor() {
   const [isSpellChecking, setIsSpellChecking] = useState(false);
   const [spellCheckResults, setSpellCheckResults] = useState<any[]>([]);
   const [replacedIndices, setReplacedIndices] = useState<Set<number>>(new Set());
+
+  // 맞춤법 하이라이트 확장을 위한 Decoration
+  const spellCheckHighlightExtension = React.useMemo(() => {
+    return Extension.create({
+      name: 'spellCheckHighlight',
+      addProseMirrorPlugins() {
+        return [
+          new Plugin({
+            key: new PluginKey('spellCheckHighlight'),
+            props: {
+              decorations: (state) => {
+                if (highlightedIndex === null) return null;
+                const error = spellCheckResults[highlightedIndex];
+                if (!error || replacedIndices.has(highlightedIndex) || addedToDictIndices.has(highlightedIndex)) return null;
+                
+                const decorations: Decoration[] = [];
+                const textToFind = error.original;
+                
+                state.doc.descendants((node, pos) => {
+                  if (node.isText && node.text?.includes(textToFind)) {
+                    const localStart = node.text.indexOf(textToFind);
+                    const start = pos + localStart;
+                    const end = start + textToFind.length;
+                    decorations.push(
+                      Decoration.inline(start, end, {
+                        class: 'spellcheck-highlight'
+                      })
+                    );
+                  }
+                });
+                return DecorationSet.create(state.doc, decorations);
+              }
+            }
+          })
+        ];
+      }
+    });
+  }, [highlightedIndex, spellCheckResults, replacedIndices, addedToDictIndices]);
 
   const presets = [
     { id: 'default', name: '기본', icon: <Monitor size={14} />, description: '760px / 18px / 2.0', styles: { maxWidth: '760px', fontSize: '18px', lineHeight: '2.0', padding: '60px 48px' } },
