@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { Project } from '@/lib/db';
-import { Star, Camera, Loader2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Star, Camera, Loader2, MoreVertical, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { supabase } from '@/lib/supabase';
 
@@ -23,6 +24,7 @@ export function ProjectCard({
   const [editTitle, setEditTitle] = useState(project.title);
   const [isUploading, setIsUploading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -88,7 +90,7 @@ export function ProjectCard({
 
   const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<Blob> => {
     return new Promise((resolve, reject) => {
-      const img = new Image();
+      const img = new window.Image();
       img.src = URL.createObjectURL(file);
       img.onload = () => {
         let { width, height } = img;
@@ -141,6 +143,7 @@ export function ProjectCard({
         .from('covers')
         .getPublicUrl(fileName);
 
+      setImageError(false); // reset error state on new upload
       await updateProject(project.id, { coverUrl: publicUrl });
     } catch (err: any) {
       console.error('Failed to upload cover', err);
@@ -166,12 +169,19 @@ export function ProjectCard({
       className="relative w-full aspect-[2/3] bg-gradient-to-br from-[#1A2A22] to-[#0A1A12] border border-[var(--border)] rounded-[12px] overflow-hidden cursor-pointer transition-all duration-300 hover:border-[var(--accent)] hover:-translate-y-1 hover:shadow-2xl group flex flex-col justify-end"
     >
       {/* Background Image / Placeholder */}
-      <div className="absolute inset-0 z-0">
-        {project.coverUrl ? (
-          <img src={project.coverUrl} alt="Cover" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1A3A22] to-[#0A1A12]">
+        {project.coverUrl && !imageError ? (
+          <Image 
+            src={project.coverUrl} 
+            alt={`${project.title} 표지`} 
+            width={400}
+            height={600}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+            onError={() => setImageError(true)}
+          />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center opacity-30">
-            <Camera size={48} className="mb-2" />
+          <div className="w-full h-full flex flex-col items-center justify-center opacity-40 mix-blend-overlay">
+            <ImageIcon size={48} className="mb-2 text-white/80" />
           </div>
         )}
       </div>

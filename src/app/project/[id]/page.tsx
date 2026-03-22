@@ -47,10 +47,14 @@ export default function ProjectEditorPage() {
         return;
       }
 
+      // 바인더 확장 상태 초기화
+      const binderStore = await import('@/store/binderStore').then(m => m.useBinderStore);
+      binderStore.setState({ expandedIds: new Set() });
+
       await setCurrentProject(id);
       setIsReady(true);
 
-      // 2단계: 최근 편집 씬 찾아서 본문 로드 우선순위 주기
+      // 2단계: 최근 편집 씬 찾아서 본문 로드 (없으면 첫 번째 씬)
       const lastScene = await db.scenes
         .where('projectId').equals(id)
         .sortBy('updatedAt')
@@ -61,6 +65,23 @@ export default function ProjectEditorPage() {
         setTimeout(() => {
           import('@/store/uiStore').then(m => m.useUiStore.getState().setCurrentScene(sceneId));
         }, 0);
+      } else {
+        // 새로 진입 시 projectId 필터링이 안 된 구형 데이터 혹은 projectId 필드가 없는 씬을 위해 챕터를 거쳐 씬을 찾음
+        const vols = await db.volumes.where('projectId').equals(id).toArray();
+        if (vols.length > 0) {
+          vols.sort((a, b) => a.order - b.order);
+          const chs = await db.chapters.where('volumeId').equals(vols[0].id).toArray();
+          if (chs.length > 0) {
+            chs.sort((a, b) => a.order - b.order);
+            const scs = await db.scenes.where('chapterId').equals(chs[0].id).toArray();
+            if (scs.length > 0) {
+              scs.sort((a, b) => a.order - b.order);
+              setTimeout(() => {
+                import('@/store/uiStore').then(m => m.useUiStore.getState().setCurrentScene(scs[0].id));
+              }, 0);
+            }
+          }
+        }
       }
 
       // 3단계: AI 데이터 백그라운드 로드

@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -30,10 +30,25 @@ export function Binder() {
   const { expandedIds, isRenamingId, setIsRenamingId } = useBinderStore();
   const currentProjectId = useProjectStore((state) => state.currentProjectId);
   
-  const projects = useLiveQuery(() => currentProjectId ? db.projects.where('id').equals(currentProjectId).toArray() : []);
-  const volumes = useLiveQuery(() => currentProjectId ? db.volumes.where('projectId').equals(currentProjectId).toArray().then(items => items.sort((a, b) => a.order - b.order)) : []);
-  const chapters = useLiveQuery(() => db.chapters.toArray().then(items => items.sort((a, b) => a.order - b.order)));
-  const scenes = useLiveQuery(() => db.scenes.toArray().then(items => items.sort((a, b) => a.order - b.order)));
+  const projects = useLiveQuery(() => currentProjectId ? db.projects.where('id').equals(currentProjectId).toArray() : [], [currentProjectId]);
+  const volumes = useLiveQuery(() => currentProjectId ? db.volumes.where('projectId').equals(currentProjectId).toArray().then(items => items.sort((a, b) => a.order - b.order)) : [], [currentProjectId]);
+  const chapters = useLiveQuery(async () => {
+    if (!currentProjectId) return [];
+    const vols = await db.volumes.where('projectId').equals(currentProjectId).toArray();
+    const volIds = vols.map(v => v.id);
+    if (volIds.length === 0) return [];
+    return db.chapters.where('volumeId').anyOf(volIds).toArray().then(items => items.sort((a, b) => a.order - b.order));
+  }, [currentProjectId]);
+  const scenes = useLiveQuery(async () => {
+    if (!currentProjectId) return [];
+    const vols = await db.volumes.where('projectId').equals(currentProjectId).toArray();
+    const volIds = vols.map(v => v.id);
+    if (volIds.length === 0) return [];
+    const chs = await db.chapters.where('volumeId').anyOf(volIds).toArray();
+    const chIds = chs.map(c => c.id);
+    if (chIds.length === 0) return [];
+    return db.scenes.where('chapterId').anyOf(chIds).toArray().then(items => items.sort((a, b) => a.order - b.order));
+  }, [currentProjectId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -50,46 +65,71 @@ export function Binder() {
     const activeType = activeId.split('-')[0];
     const overType = overId.split('-')[0];
 
-    // 볼륨 이동
-    if (activeType === 'vol' && overType === 'vol') {
-      const activeVol = volumes?.find(v => v.id === activeId);
-      const overVol = volumes?.find(v => v.id === overId);
-      if (!activeVol || !overVol) return;
+    // 볼륨 이동: over가 챕터나 씬일 경우 해당 부모 볼륨을 타겟으로 함
+    if (activeType === 'vol') {
+      let targetOverId = overId;
+      if (overType === 'scene') {
+        const overSc = scenes?.find(s => s.id === overId);
+        if (overSc) {
+          const overCh = chapters?.find(c => c.id === overSc.chapterId);
+          if (overCh) targetOverId = overCh.volumeId;
+        }
+      } else if (overType === 'chapter') {
+        const overCh = chapters?.find(c => c.id === overId);
+        if (overCh) targetOverId = overCh.volumeId;
+      }
 
-      const oldIndex = volumes!.findIndex(v => v.id === activeId);
-      const newIndex = volumes!.findIndex(v => v.id === overId);
-      const newVols = arrayMove(volumes!, oldIndex, newIndex);
-      await Promise.all(newVols.map((v, i) => db.volumes.update(v.id, { order: i + 1 })));
+      if (targetOverId && targetOverId !== activeId) {
+        const activeVol = volumes?.find(v => v.id === activeId);
+        const overVol = volumes?.find(v => v.id === targetOverId);
+        if (activeVol && overVol) {
+          const oldIndex = volumes!.findIndex(v => v.id === activeId);
+          const newIndex = volumes!.findIndex(v => v.id === targetOverId);
+          const newVols = arrayMove(volumes!, oldIndex, newIndex);
+          await Promise.all(newVols.map((v, i) => db.volumes.update(v.id, { order: i + 1 })));
+        }
+      }
       return;
     }
 
-    // 챕터 이동
+    // 챕터 이동: over가 씬일 경우 해당 씬의 부모 챕터를 타겟으로 함
     if (activeType === 'chapter') {
       const activeCh = chapters?.find(c => c.id === activeId);
       if (!activeCh) return;
 
-      if (overType === 'chapter') {
-        const overCh = chapters!.find(c => c.id === overId);
+      let targetOverId = overId;
+      let targetOverType = overType;
+
+      if (overType === 'scene') {
+        const overSc = scenes?.find(s => s.id === overId);
+        if (overSc) {
+          targetOverId = overSc.chapterId;
+          targetOverType = 'chapter';
+        }
+      }
+
+      if (targetOverType === 'chapter') {
+        const overCh = chapters!.find(c => c.id === targetOverId);
         if (!overCh) return;
 
         if (activeCh.volumeId === overCh.volumeId) {
           const vChs = chapters!.filter(c => c.volumeId === activeCh.volumeId);
           const oldIndex = vChs.findIndex(c => c.id === activeId);
-          const newIndex = vChs.findIndex(c => c.id === overId);
+          const newIndex = vChs.findIndex(c => c.id === targetOverId);
           const newChs = arrayMove(vChs, oldIndex, newIndex);
           await Promise.all(newChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
         } else {
           // 다른 볼륨의 챕터 위로 드롭 => 소속 변경 및 순서 삽입
           const vChs = chapters!.filter(c => c.volumeId === overCh.volumeId);
-          const targetIndex = vChs.findIndex(c => c.id === overId);
+          const targetIndex = vChs.findIndex(c => c.id === targetOverId);
           vChs.splice(targetIndex, 0, activeCh);
           await db.chapters.update(activeId, { volumeId: overCh.volumeId });
           await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
         }
-      } else if (overType === 'vol') {
-        const vChs = chapters!.filter(c => c.volumeId === overId);
+      } else if (targetOverType === 'vol') {
+        const vChs = chapters!.filter(c => c.volumeId === targetOverId);
         const maxOrder = vChs.length > 0 ? Math.max(...vChs.map(c => c.order)) : 0;
-        await db.chapters.update(activeId, { volumeId: overId, order: maxOrder + 1 });
+        await db.chapters.update(activeId, { volumeId: targetOverId, order: maxOrder + 1 });
       }
       return;
     }
@@ -169,6 +209,28 @@ export function Binder() {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <style>{`
+        /* 모든 BinderItem의 텍스트 색상을 기본적으로 밝게 보장하고, opacity 1을 강제함 */
+        .group.flex.items-center.justify-between {
+          color: var(--text-primary) !important;
+        }
+        .group.flex.items-center.justify-between span.truncate {
+          opacity: 1 !important;
+          color: var(--text-primary) !important;
+        }
+        
+        /* Drag 중인 요소는 dnd-kit가 inline style로 opacity 등을 설정함. 
+           명확하게 투명도 0.5 적용되도록 보장 */
+        div[style*="opacity: 0.5"] .group {
+          opacity: 0.5 !important;
+        }
+        
+        /* 볼륨 간 드래그 시 파란 라인 표시용 (isOver 스타일 덮어쓰기) */
+        .ring-2.ring-\\[var\\(--accent\\)\\] {
+          border: 2px solid var(--accent) !important;
+          box-shadow: none !important;
+        }
+      `}</style>
       
       {/* 프로젝트 헤더 */}
       {project && (
@@ -195,7 +257,7 @@ export function Binder() {
       <div className="flex-1 overflow-y-auto px-2 py-2">
         <DndContext 
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={pointerWithin}
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={volumes.map(v => v.id)} strategy={verticalListSortingStrategy}>
