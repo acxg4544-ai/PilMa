@@ -381,86 +381,82 @@ export default function NovelEditor() {
 
   const controlsBar = (
     <div className={cn(
-      "flex items-center justify-end gap-3 z-30 px-4 py-2 shrink-0 border-b border-[var(--border)] bg-[var(--bg-card)]",
-      editorPipMode ? "w-full mb-0 sticky top-0" : "w-full rounded-t-xl"
+      "flex items-center justify-end gap-1.5 z-30 px-2 py-1 shrink-0 bg-transparent",
+      editorPipMode && "w-full sticky top-0 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border)] mb-0"
     )}>
-      {/* 에디팅 옵션 토글 */}
-      <div className="flex items-center gap-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-1 shadow-sm">
-        <button
-          onClick={() => setSmartQuotes(!smartQuotes)}
-          className={cn(
-            "w-8 h-8 flex items-center justify-center rounded-full transition-all",
-            smartQuotes ? "text-[var(--accent)] bg-[var(--accent)]/10" : "text-[var(--text-disabled)] hover:text-[var(--text-secondary)]"
-          )}
-          title={`스마트 따옴표: ${smartQuotes ? 'ON' : 'OFF'}`}
-        >
-          <Quote size={14} />
-        </button>
-        <button
-          onClick={() => setTypewriterMode(!typewriterMode)}
-          className={cn(
-            "w-8 h-8 flex items-center justify-center rounded-full transition-all",
-            typewriterMode ? "text-[var(--accent)] bg-[var(--accent)]/10" : "text-[var(--text-disabled)] hover:text-[var(--text-secondary)]"
-          )}
-          title={`타입라이터 모드: ${typewriterMode ? 'ON' : 'OFF'}`}
-        >
-          <Keyboard size={14} />
-        </button>
-        <button
-          onClick={handleSpellCheck}
-          className={cn(
-            "w-8 h-8 flex items-center justify-center rounded-full transition-all",
-            isSpellCheckOpen ? "text-[var(--accent)] bg-[var(--accent)]/10" : "text-[var(--text-disabled)] hover:text-[var(--text-secondary)]"
-          )}
-          title="맞춤법 검사 실행"
-        >
-          <Pencil size={14} />
-        </button>
-      </div>
+      {/* 에디터 옵션 - 단일 버튼들 */}
+      <button
+        onClick={() => setSmartQuotes(!smartQuotes)}
+        className={cn(
+          "w-8 h-8 flex items-center justify-center rounded-md transition-all",
+          smartQuotes ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+        )}
+        title={`스마트 따옴표: ${smartQuotes ? 'ON' : 'OFF'}`}
+      >
+        <Quote size={20} />
+      </button>
+      <button
+        onClick={() => setTypewriterMode(!typewriterMode)}
+        className={cn(
+          "w-8 h-8 flex items-center justify-center rounded-md transition-all",
+          typewriterMode ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+        )}
+        title={`타입라이터 모드: ${typewriterMode ? 'ON' : 'OFF'}`}
+      >
+        <Keyboard size={20} />
+      </button>
+      <button
+        onClick={handleSpellCheck}
+        className={cn(
+          "w-8 h-8 flex items-center justify-center rounded-md transition-all",
+          isSpellCheckOpen ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+        )}
+        title="맞춤법 검사 실행"
+      >
+        <Pencil size={20} />
+      </button>
 
-      <div className="w-px h-5 bg-[var(--divider)] mx-1" />
+      <div className="w-px h-4 border-l border-[var(--border)] opacity-30 mx-1" />
 
       {/* 줌 컨트롤 */}
-      <div className="flex items-center gap-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-1 shadow-sm">
+      <div className="flex items-center">
         <button 
           onClick={() => setZoomLevel(zoomLevel - 10)}
-          className="w-8 h-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          className="w-8 h-8 flex items-center justify-center text-[var(--text-disabled)] hover:text-[var(--text-primary)] transition-colors"
           title="축소 (Ctrl + -)"
         >
-          <ZoomOut size={15} />
+          <ZoomOut size={20} />
         </button>
         <button 
           onClick={() => setZoomLevel(100)}
-          className="px-2 text-[12px] font-bold text-[var(--accent)] hover:underline min-w-[45px] text-center"
+          className="px-1 text-[12px] font-bold text-[var(--text-disabled)] hover:text-[var(--accent)] min-w-[35px] text-center"
           title="100% 리셋 (Ctrl + 0)"
         >
           {zoomLevel}%
         </button>
         <button 
           onClick={() => setZoomLevel(zoomLevel + 10)}
-          className="w-8 h-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          className="w-8 h-8 flex items-center justify-center text-[var(--text-disabled)] hover:text-[var(--text-primary)] transition-colors"
           title="확대 (Ctrl + =)"
         >
-          <ZoomIn size={15} />
+          <ZoomIn size={20} />
         </button>
       </div>
 
-      <div className="w-px h-5 bg-[var(--divider)] mx-1" />
+      <div className="w-px h-4 border-l border-[var(--border)] opacity-30 mx-1" />
 
-      {/* 프리셋 드롭다운 */}
+      {/* 프리셋 드롭다운 (텍스트 버튼형) */}
       <div className="relative" ref={presetRef}>
         <button
           onClick={() => setIsPresetOpen(!isPresetOpen)}
-          className="flex items-center gap-2 px-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-[12px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all shadow-sm"
+          className="flex items-center gap-0.5 px-2 py-1.5 text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
         >
-          <span className="opacity-70">{isMobileView ? '📱' : currentPreset.id === 'wide' ? '📐' : '💻'}</span>
           <span>{currentPreset.name}</span>
-          <ChevronDown size={14} className={cn("transition-transform duration-200", isPresetOpen && "rotate-180")} />
+          <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60", isPresetOpen && "rotate-180")} />
         </button>
 
         {isPresetOpen && (
-          <div className="absolute top-full mt-2 right-0 w-48 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
-            <div className="px-3 py-2 text-[10px] font-bold text-[var(--text-disabled)] uppercase tracking-wider">미리보기 프리셋</div>
+          <div className="absolute top-full mt-1 right-0 w-44 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
             {presets.map((p) => (
               <button
                 key={p.id}
@@ -469,17 +465,11 @@ export default function NovelEditor() {
                   setIsPresetOpen(false);
                 }}
                 className={cn(
-                  "w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors text-left",
+                  "w-full px-3 py-2 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors text-left",
                   editorPreset === p.id ? "text-[var(--accent)] bg-[var(--accent)]/5" : "text-[var(--text-secondary)]"
                 )}
               >
-                <div className="flex items-center gap-2.5">
-                  <span className="opacity-60">{p.icon}</span>
-                  <div className="flex flex-col">
-                    <span className="text-[13px] font-bold leading-none mb-1">{p.name}</span>
-                    <span className="text-[10px] opacity-50">{p.description}</span>
-                  </div>
-                </div>
+                <span className="text-[13px] font-bold">{p.name}</span>
                 {editorPreset === p.id && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />}
               </button>
             ))}
@@ -487,38 +477,36 @@ export default function NovelEditor() {
         )}
       </div>
 
-      <div className="w-px h-5 bg-[var(--divider)] mx-1" />
+      <div className="w-px h-4 border-l border-[var(--border)] opacity-30 mx-1" />
 
-      {/* PIP 버튼 (메인 모드에서만 표시) */}
+      {/* PIP & 복사 */}
       {!editorPipMode && (
         <button
           onClick={() => setEditorPipMode(true)}
-          className="flex w-10 h-10 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)] transition-all rounded-full bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)] shadow-sm"
+          className="w-8 h-8 flex items-center justify-center text-[var(--text-disabled)] hover:text-[var(--text-primary)] transition-all"
           title="플로팅(PIP) 모드로 분리"
         >
-          <SquareArrowOutUpRight size={16} />
+          <SquareArrowOutUpRight size={20} />
         </button>
       )}
-
-      {/* 본문 복사 버튼 */}
       <button
         onClick={handleCopyText}
         className={cn(
-          "flex w-10 h-10 items-center justify-center transition-all rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-sm",
-          isCopied ? "text-[var(--accent)] border-[var(--accent)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]"
+          "w-8 h-8 flex items-center justify-center transition-all",
+          isCopied ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
         )}
         title="본문 복사 (순수 텍스트)"
       >
-        {isCopied ? <Check size={16} /> : <Copy size={16} />}
+        {isCopied ? <Check size={20} /> : <Copy size={20} />}
       </button>
     </div>
   );
 
   const editorBody = (
     <div className="flex flex-col w-full h-full items-center">
-      {/* 1. 상단 제어 도구 바 (줌 영향 안 받음) */}
+      {/* 줌 영향 안 받는 상단 레이어 */}
       {!editorPipMode && (
-        <div className="w-full max-w-[760px] mb-4 z-30">
+        <div className="w-full max-w-[760px] z-30">
           {controlsBar}
         </div>
       )}
