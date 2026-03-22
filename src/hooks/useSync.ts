@@ -72,7 +72,7 @@ export function useSync() {
             tags: p.tags || [],
             is_favorite: p.isFavorite || false,
             created_at: new Date(p.createdAt).toISOString(),
-            updated_at: now,
+            updated_at: new Date(p.updatedAt).toISOString(),
           })) as any[],
           { onConflict: 'id' }
         );

@@ -113,7 +113,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             description: rp.description || '',
             tags: rp.tags || [],
             isFavorite: rp.is_favorite || false,
-            coverUrl: rp.cover_url || rp.coverUrl || local?.coverUrl,
+            coverUrl: rp.cover_url || rp.coverUrl || local?.coverUrl || undefined,
             createdAt: remoteCreatedAt,
             updatedAt: remoteUpdatedAt,
           });
