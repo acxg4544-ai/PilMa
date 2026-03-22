@@ -15,7 +15,12 @@ interface SpellCheckPanelProps {
   isLoading: boolean;
   onClose: () => void;
   onReplace: (original: string, suggestion: string, index: number) => void;
+  onRevert: (index: number) => void;
+  onHover: (index: number | null) => void;
+  onAddToDictionary: (word: string, index: number) => void;
   replacedIndices: Set<number>;
+  addedToDictIndices?: Set<number>;
+  fixedValues?: Record<number, string>; // 수정된 값 추적
 }
 
 export function SpellCheckPanel({ 
@@ -23,15 +28,37 @@ export function SpellCheckPanel({
   isLoading, 
   onClose, 
   onReplace, 
-  replacedIndices 
+  onRevert,
+  onHover,
+  onAddToDictionary,
+  replacedIndices,
+  addedToDictIndices = new Set(),
+  fixedValues = {}
 }: SpellCheckPanelProps) {
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
   const [customText, setCustomText] = React.useState('');
+  
+  const Book = ({ size, className }: { size: number, className?: string }) => (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-card)] border-t border-[var(--border)] shadow-2xl flex flex-col h-[250px] animate-in slide-in-from-bottom duration-200">
+    <div className="z-40 bg-[var(--bg-card)] border-t border-[var(--border)] shadow-2xl flex flex-col h-[250px] animate-in slide-in-from-bottom duration-200 shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] shrink-0 bg-[var(--bg-sidebar)]/50">
         <h3 className="text-[13px] font-bold text-[var(--text-primary)] flex items-center gap-2">
           ✏️ 맞춤법 검사 결과
           {results.length > 0 && (
@@ -64,42 +91,74 @@ export function SpellCheckPanel({
             {results.map((item, idx) => (
               <div 
                 key={`${item.original}-${idx}`} 
+                onMouseEnter={() => onHover(idx)}
+                onMouseLeave={() => onHover(null)}
+                onClick={() => onHover(idx)}
                 className={cn(
-                  "p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-editor)] transition-all",
-                  replacedIndices.has(idx) && "opacity-50"
+                  "p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-editor)] transition-all cursor-pointer hover:border-[var(--accent)]/50",
+                  (replacedIndices.has(idx) || addedToDictIndices.has(idx)) && "bg-[var(--bg-hover)]/30 border-dashed opacity-70"
                 )}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[14px] line-through text-red-500 decoration-red-500/50">
-                        {item.original}
-                      </span>
-                      <span className="text-[var(--text-disabled)]">→</span>
-                      {replacedIndices.has(idx) ? (
-                        <span className="text-[14px] text-[var(--pm-success)] font-medium flex items-center gap-1">
-                          <Check size={14} /> 수정됨
-                        </span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.suggestions.map((suggestion) => (
-                            <button
-                              key={suggestion}
-                              onClick={() => onReplace(item.original, suggestion, idx)}
-                              className="px-2 py-1 text-[12px] bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white rounded transition-colors font-medium border border-[var(--accent)]/20"
-                            >
-                              {suggestion}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => {
-                              setEditingIndex(idx);
-                              setCustomText(item.original);
+                      {addedToDictIndices.has(idx) ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] text-[var(--text-disabled)] font-medium">
+                            {item.original}
+                          </span>
+                          <span className="text-[12px] text-[var(--pm-success)] bg-[var(--pm-success)]/10 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Check size={12} /> 단어장 등록됨
+                          </span>
+                        </div>
+                      ) : replacedIndices.has(idx) ? (
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRevert(idx);
                             }}
-                            className="px-2 py-1 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border)] transition-colors"
+                            className="text-[14px] line-through text-red-500 decoration-red-500/50 hover:text-red-600 transition-colors"
+                            title="다시 틀린 텍스트로 되돌리기"
                           >
-                            직접 입력
+                            {item.original}
                           </button>
+                          <span className="text-[var(--text-disabled)]">→</span>
+                          <span className="text-[14px] text-[var(--pm-success)] font-medium flex items-center gap-1">
+                            <Check size={14} /> {fixedValues[idx] || item.suggestions[0]}
+                          </span>
+                          <span className="text-[11px] text-[var(--text-disabled)] ml-2 italic">(수정됨)</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-semibold text-red-500">
+                            {item.original}
+                          </span>
+                          <span className="text-[var(--text-disabled)]">→</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.suggestions.map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onReplace(item.original, suggestion, idx);
+                                }}
+                                className="px-2 py-1 text-[12px] bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white rounded transition-colors font-medium border border-[var(--accent)]/20"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingIndex(idx);
+                                setCustomText(item.original);
+                              }}
+                              className="px-2 py-1 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border)] transition-colors"
+                            >
+                              직접 입력
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -133,6 +192,25 @@ export function SpellCheckPanel({
                       {item.reason}
                     </p>
                   </div>
+                  
+                  {/* 단어장 추가 버튼 */}
+                  {!replacedIndices.has(idx) && !addedToDictIndices.has(idx) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddToDictionary(item.original, idx);
+                      }}
+                      className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 rounded-md transition-all shrink-0"
+                      title="단어장에 추가"
+                    >
+                      <Book size={18} />
+                    </button>
+                  )}
+                  {addedToDictIndices.has(idx) && (
+                    <div className="p-1.5 text-[var(--pm-success)] shrink-0">
+                      <Check size={18} />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

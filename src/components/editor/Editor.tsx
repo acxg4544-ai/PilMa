@@ -57,6 +57,11 @@ export default function NovelEditor() {
   const prevZoomRef = useRef(zoomLevel);
   const isSyncingSizeRef = useRef(false);
 
+  // 맞춤법 검사 부가 상태
+  const [fixedValues, setFixedValues] = useState<Record<number, string>>({});
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
+  const [addedToDictIndices, setAddedToDictIndices] = useState<Set<number>>(new Set());
+
   // 텍스트 대치 및 단어장 상태 추가
   const replacements = useLiveQuery(
     () => (currentProjectId ? db.text_replacements.where('projectId').equals(currentProjectId).toArray() : []),
@@ -325,6 +330,9 @@ export default function NovelEditor() {
     setIsSpellCheckOpen(true);
     setSpellCheckResults([]);
     setReplacedIndices(new Set());
+    setAddedToDictIndices(new Set());
+    setFixedValues({});
+    setHighlightedIndex(null);
 
     try {
       // 1. 단어장 로드
@@ -365,10 +373,62 @@ export default function NovelEditor() {
         const start = pos + node.text.indexOf(original);
         editor.commands.insertContentAt({ from: start, to: start + original.length }, suggestion);
         found = true;
+        setFixedValues(prev => ({ ...prev, [index]: suggestion }));
         setReplacedIndices(prev => new Set(prev).add(index));
+        setHighlightedIndex(null); // 수정 후 하이라이트 제거
       }
       return true;
     });
+  };
+
+  // 수정 취소 (되돌리기)
+  const handleRevert = (index: number) => {
+    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    const errorArr = spellCheckResults;
+    const original = errorArr[index]?.original;
+    const replacement = fixedValues[index];
+
+    if (!original || !replacement) return;
+
+    const { doc } = editor.state;
+    let found = false;
+    doc.descendants((node: any, pos: number) => {
+      if (found) return false;
+      if (node.isText && node.text?.includes(replacement)) {
+        const start = pos + node.text.indexOf(replacement);
+        editor.commands.insertContentAt({ from: start, to: start + replacement.length }, original);
+        found = true;
+        
+        setReplacedIndices(prev => {
+          const next = new Set(prev);
+          next.delete(index);
+          return next;
+        });
+        setFixedValues(prev => {
+          const next = { ...prev };
+          delete next[index];
+          return next;
+        });
+      }
+      return true;
+    });
+  };
+
+  // 단어장 추가
+  const handleAddToDictionary = async (word: string, index: number) => {
+    if (!currentProjectId || !word) return;
+    try {
+      await db.dictionary.add({
+        id: crypto.randomUUID(),
+        projectId: currentProjectId,
+        word: word.trim()
+      });
+      setAddedToDictIndices(prev => new Set(prev).add(index));
+      setHighlightedIndex(null); // 하이라이트 제거
+    } catch (e) {
+      console.error('Failed to add word to dictionary', e);
+    }
   };
 
   const handleCopyText = useCallback(() => {
@@ -656,7 +716,10 @@ export default function NovelEditor() {
                     },
                   } as any,
                 ].filter(Boolean) as any}
-                onUpdate={({ editor }) => handleUpdate(editor)}
+                onUpdate={({ editor }) => {
+                   handleUpdate(editor);
+                   // 본문 내용이 바뀌면 하이라이트 강제 갱신 유도 (에디터 리로드는 아님)
+                }}
                 onSelectionUpdate={handleSelectionUpdate}
                 onCreate={({ editor }) => { editorRef.current = editor; }}
                 className="novel-editor-wrapper prose-lg focus:outline-none"
@@ -675,18 +738,54 @@ export default function NovelEditor() {
                    min-height: 200px;
                    outline: none !important;
                 }
+                .spellcheck-highlight {
+                   background: rgba(196, 74, 74, 0.15);
+                   border-bottom: 2px wavy var(--danger);
+                   transition: background 0.2s;
+                }
               `}</style>
             </EditorRoot>
           </div>
 
-          {/* 맞춤법 검사 패널 */}
+          {/* 맞춤법 검사 패널 - 에디터 카드 하단에 위치 (sticky/absolute 아님, flex 순서로 배치) */}
           {isSpellCheckOpen && (
             <SpellCheckPanel
               results={spellCheckResults}
               isLoading={isSpellChecking}
               onClose={() => setIsSpellCheckOpen(false)}
               onReplace={handleReplace}
+              onRevert={handleRevert}
+              onAddToDictionary={handleAddToDictionary}
+              onHover={(idx) => {
+                setHighlightedIndex(idx);
+                // 에디터가 아직 생성 전이 아니면 비동기적으로 스크롤 유도
+                if (idx !== null && editorRef.current) {
+                   const editor = editorRef.current;
+                   const error = spellCheckResults[idx];
+                   if (error && !replacedIndices.has(idx) && !addedToDictIndices.has(idx)) {
+                      const textToFind = error.original;
+                      let foundPos = -1;
+                      editor.state.doc.descendants((node: any, pos: number) => {
+                        if (foundPos !== -1) return false;
+                        if (node.isText && node.text.includes(textToFind)) {
+                           foundPos = pos + node.text.indexOf(textToFind);
+                        }
+                      });
+                      if (foundPos !== -1) {
+                         editor.commands.setTextSelection({ from: foundPos, to: foundPos + textToFind.length });
+                         // 스크롤 동기화
+                         const { view } = editor;
+                         const dom = view.nodeDOM(foundPos) || view.domAtPos(foundPos).node;
+                         if (dom instanceof HTMLElement) {
+                            dom.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                         }
+                      }
+                   }
+                }
+              }}
               replacedIndices={replacedIndices}
+              addedToDictIndices={addedToDictIndices}
+              fixedValues={fixedValues}
             />
           )}
         </div>
