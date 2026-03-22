@@ -7,11 +7,14 @@ import { NewProjectModal } from '@/components/home/NewProjectModal';
 import { EditProjectModal } from '@/components/home/EditProjectModal';
 import { DeleteConfirmModal } from '@/components/home/DeleteConfirmModal';
 import { useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { Search, LogIn, LogOut, User } from 'lucide-react';
 import { Project } from '@/lib/db';
+import { useAuth } from '@/hooks/useAuth';
+import { LoginModal } from '@/components/auth/LoginModal';
 
 export default function Home() {
   const { projects, loadProjects } = useProjectStore();
+  const { user, openLoginModal, signOut } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'updatedAt' | 'title' | 'createdAt'>('updatedAt');
@@ -49,12 +52,45 @@ export default function Home() {
       {/* Header */}
       <header className="w-full max-w-[1200px] h-16 flex items-center justify-between px-6 pt-4 shrink-0">
         <h1 className="text-2xl font-bold font-serif text-[var(--accent)] tracking-tight">필마 筆魔</h1>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-[var(--accent)] hover:opacity-90 text-[var(--bg-base)] px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
-        >
-          <span className="text-lg leading-none">+</span> 새 작품
-        </button>
+        
+        <div className="flex items-center gap-3">
+          {user ? (
+            <div className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border)] px-3 py-1.5 rounded-lg shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)]">
+                  <User size={14} />
+                </div>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)] hidden sm:inline-block max-w-[150px] truncate">
+                  {user.email}
+                </span>
+              </div>
+              <div className="w-px h-4 bg-[var(--divider)] mx-1" />
+              <button 
+                onClick={() => signOut()}
+                className="text-[13px] font-semibold text-[var(--text-secondary)] hover:text-red-500 transition-colors flex items-center gap-1.5"
+                title="로그아웃"
+              >
+                <LogOut size={15} />
+                <span className="hidden sm:inline">로그아웃</span>
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={openLoginModal}
+              className="text-[14px] font-semibold text-[var(--text-secondary)] hover:text-[var(--accent)] px-3 py-2 transition-all flex items-center gap-2"
+            >
+              <LogIn size={16} />
+              로그인
+            </button>
+          )}
+
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[var(--accent)] hover:opacity-90 text-[var(--bg-base)] px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+          >
+            <span className="text-lg leading-none">+</span> 새 작품
+          </button>
+        </div>
       </header>
 
       {/* Main */}
@@ -142,6 +178,7 @@ export default function Home() {
         )}
       </main>
 
+      <LoginModal />
       {isModalOpen && <NewProjectModal onClose={() => setIsModalOpen(false)} />}
       {editingProject && <EditProjectModal project={editingProject} onClose={() => setEditingProject(null)} />}
       {deletingProject && <DeleteConfirmModal project={deletingProject} onClose={() => setDeletingProject(null)} />}
