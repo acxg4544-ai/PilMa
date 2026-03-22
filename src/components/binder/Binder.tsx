@@ -43,7 +43,87 @@ export function Binder() {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    // Logic for ordering update would go here
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeType = activeId.split('-')[0];
+    const overType = overId.split('-')[0];
+
+    // 볼륨 이동
+    if (activeType === 'vol' && overType === 'vol') {
+      const activeVol = volumes?.find(v => v.id === activeId);
+      const overVol = volumes?.find(v => v.id === overId);
+      if (!activeVol || !overVol) return;
+
+      const oldIndex = volumes!.findIndex(v => v.id === activeId);
+      const newIndex = volumes!.findIndex(v => v.id === overId);
+      const newVols = arrayMove(volumes!, oldIndex, newIndex);
+      await Promise.all(newVols.map((v, i) => db.volumes.update(v.id, { order: i + 1 })));
+      return;
+    }
+
+    // 챕터 이동
+    if (activeType === 'chapter') {
+      const activeCh = chapters?.find(c => c.id === activeId);
+      if (!activeCh) return;
+
+      if (overType === 'chapter') {
+        const overCh = chapters!.find(c => c.id === overId);
+        if (!overCh) return;
+
+        if (activeCh.volumeId === overCh.volumeId) {
+          const vChs = chapters!.filter(c => c.volumeId === activeCh.volumeId);
+          const oldIndex = vChs.findIndex(c => c.id === activeId);
+          const newIndex = vChs.findIndex(c => c.id === overId);
+          const newChs = arrayMove(vChs, oldIndex, newIndex);
+          await Promise.all(newChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+        } else {
+          // 다른 볼륨의 챕터 위로 드롭 => 소속 변경 및 순서 삽입
+          const vChs = chapters!.filter(c => c.volumeId === overCh.volumeId);
+          const targetIndex = vChs.findIndex(c => c.id === overId);
+          vChs.splice(targetIndex, 0, activeCh);
+          await db.chapters.update(activeId, { volumeId: overCh.volumeId });
+          await Promise.all(vChs.map((c, i) => db.chapters.update(c.id, { order: i + 1 })));
+        }
+      } else if (overType === 'vol') {
+        const vChs = chapters!.filter(c => c.volumeId === overId);
+        const maxOrder = vChs.length > 0 ? Math.max(...vChs.map(c => c.order)) : 0;
+        await db.chapters.update(activeId, { volumeId: overId, order: maxOrder + 1 });
+      }
+      return;
+    }
+
+    // 씬 이동
+    if (activeType === 'scene') {
+      const activeSc = scenes?.find(s => s.id === activeId);
+      if (!activeSc) return;
+
+      if (overType === 'scene') {
+        const overSc = scenes!.find(s => s.id === overId);
+        if (!overSc) return;
+
+        if (activeSc.chapterId === overSc.chapterId) {
+          const cScs = scenes!.filter(s => s.chapterId === activeSc.chapterId);
+          const oldIndex = cScs.findIndex(s => s.id === activeId);
+          const newIndex = cScs.findIndex(s => s.id === overId);
+          const newScs = arrayMove(cScs, oldIndex, newIndex);
+          await Promise.all(newScs.map((s, i) => db.scenes.update(s.id, { order: i + 1 })));
+        } else {
+          // 다른 챕터로 이동
+          const cScs = scenes!.filter(s => s.chapterId === overSc.chapterId);
+          const targetIndex = cScs.findIndex(s => s.id === overId);
+          cScs.splice(targetIndex, 0, activeSc);
+          await db.scenes.update(activeId, { chapterId: overSc.chapterId });
+          await Promise.all(cScs.map((s, i) => db.scenes.update(s.id, { order: i + 1 })));
+        }
+      } else if (overType === 'chapter') {
+        const cScs = scenes!.filter(s => s.chapterId === overId);
+        const maxOrder = cScs.length > 0 ? Math.max(...cScs.map(s => s.order)) : 0;
+        await db.scenes.update(activeId, { chapterId: overId, order: maxOrder + 1 });
+      }
+      return;
+    }
   };
 
   const addVolume = async () => {
@@ -118,58 +198,65 @@ export function Binder() {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          {volumes.map((volume) => {
-            const volumeChapters = chapters?.filter(ch => ch.volumeId === volume.id) || [];
-            const isVolumeExpanded = expandedIds.has(volume.id);
-            
-            return (
-              <div key={volume.id}>
-                <SortableContext items={volumes.map(v => v.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={volumes.map(v => v.id)} strategy={verticalListSortingStrategy}>
+            {volumes.map((volume) => {
+              const volumeChapters = chapters?.filter(ch => ch.volumeId === volume.id) || [];
+              const isVolumeExpanded = expandedIds.has(volume.id);
+              
+              return (
+                <div key={volume.id}>
                   <BinderItem
                     id={volume.id}
                     type="volume"
                     title={volume.title}
                     level={0}
+                    icon={volume.icon}
                     isExpanded={isVolumeExpanded}
                     wordCount={getVolumeWordCount(volume.id)}
                   >
                     <div>
-                      {volumeChapters.map((chapter) => {
-                        const chapterScenes = scenes?.filter(s => s.chapterId === chapter.id) || [];
-                        const isChapterExpanded = expandedIds.has(chapter.id);
-                        
-                        return (
-                          <div key={chapter.id}>
-                            <BinderItem
-                              id={chapter.id}
-                              type="chapter"
-                              title={chapter.title}
-                              level={1}
-                              isExpanded={isChapterExpanded}
-                              wordCount={getChapterWordCount(chapter.id)}
-                            >
-                              <div>
-                                {chapterScenes.map((scene) => (
-                                  <BinderItem
-                                    key={scene.id}
-                                    id={scene.id}
-                                    type="scene"
-                                    title={scene.title}
-                                    level={2}
-                                    wordCount={scene.wordCount}
-                                  />
-                                ))}
-                              </div>
-                            </BinderItem>
-                          </div>
-                        );
-                      })}
+                      <SortableContext items={volumeChapters.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                        {volumeChapters.map((chapter) => {
+                          const chapterScenes = scenes?.filter(s => s.chapterId === chapter.id) || [];
+                          const isChapterExpanded = expandedIds.has(chapter.id);
+                          
+                          return (
+                            <div key={chapter.id}>
+                              <BinderItem
+                                id={chapter.id}
+                                type="chapter"
+                                title={chapter.title}
+                                level={1}
+                                icon={chapter.icon}
+                                isExpanded={isChapterExpanded}
+                                wordCount={getChapterWordCount(chapter.id)}
+                              >
+                                <div>
+                                  <SortableContext items={chapterScenes.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                                    {chapterScenes.map((scene) => (
+                                      <BinderItem
+                                        key={scene.id}
+                                        id={scene.id}
+                                        type="scene"
+                                        title={scene.title}
+                                        icon={scene.icon}
+                                        level={2}
+                                        wordCount={scene.wordCount}
+                                      />
+                                    ))}
+                                  </SortableContext>
+                                </div>
+                              </BinderItem>
+                            </div>
+                          );
+                        })}
+                      </SortableContext>
                     </div>
                   </BinderItem>
-                </SortableContext>
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </SortableContext>
         </DndContext>
       </div>
 

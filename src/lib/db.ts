@@ -16,6 +16,7 @@ export interface Volume {
   projectId: string;
   title: string;
   order: number;
+  icon?: string;
 }
 
 export interface Chapter {
@@ -23,6 +24,7 @@ export interface Chapter {
   volumeId: string;
   title: string;
   order: number;
+  icon?: string;
 }
 
 export interface Scene {
@@ -31,6 +33,7 @@ export interface Scene {
   chapterId: string;
   title: string;
   order: number;
+  icon?: string;
   content: any; // TipTap JSON document
   plot?: string; // 이번 회차 플롯
   wordCount: number;
@@ -89,6 +92,14 @@ export class PilMaDatabase extends Dexie {
       volumes: 'id, projectId, title, order',
       chapters: 'id, volumeId, title, order',
       scenes: 'id, projectId, chapterId, title, order, wordCount, createdAt, updatedAt, plot',
+      ai_cache: 'id, projectId, contentHash, geminiFileUri, summary, updatedAt',
+      prompt_presets: 'id, projectId, slot, prompt',
+    });
+    this.version(5).stores({
+      projects: 'id, title, createdAt, updatedAt',
+      volumes: 'id, projectId, title, order, icon',
+      chapters: 'id, volumeId, title, order, icon',
+      scenes: 'id, projectId, chapterId, title, order, icon, wordCount, createdAt, updatedAt, plot',
       ai_cache: 'id, projectId, contentHash, geminiFileUri, summary, updatedAt',
       prompt_presets: 'id, projectId, slot, prompt',
     });

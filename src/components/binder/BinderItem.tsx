@@ -9,6 +9,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, MoreHorizontal } from 'lucide-react';
 import { nanoid } from 'nanoid';
+import { IconPicker } from './IconPicker';
 
 interface BinderItemProps {
   id: string;
@@ -16,12 +17,13 @@ interface BinderItemProps {
   title: string;
   level: number;
   wordCount?: number;
+  icon?: string;
   isExpanded?: boolean;
   onSelect?: () => void;
   children?: React.ReactNode;
 }
 
-export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSelect, children }: BinderItemProps) {
+export function BinderItem({ id, type, title, level, wordCount, icon, isExpanded, onSelect, children }: BinderItemProps) {
   const { toggleExpanded, isRenamingId, setIsRenamingId } = useBinderStore();
   const { currentSceneId, setCurrentScene } = useUiStore();
   const [localTitle, setLocalTitle] = useState(title);
@@ -31,6 +33,8 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
 
   const isSelected = type === 'scene' && currentSceneId === id;
   const isRenaming = isRenamingId === id;
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const {
     attributes,
@@ -38,7 +42,8 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
+    isOver
   } = useSortable({ id });
 
   const style = {
@@ -46,6 +51,8 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
     transition,
     paddingLeft: level === 0 ? '8px' : level === 1 ? '24px' : '40px',
     opacity: isDragging ? 0.5 : 1,
+    scale: isDragging ? '1.02' : '1',
+    zIndex: isDragging ? 999 : 'auto',
   };
 
   useEffect(() => {
@@ -61,13 +68,13 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
         setIsMenuOpen(false);
       }
     };
-    if (isMenuOpen) {
+    if (isMenuOpen && !showIconPicker) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, showIconPicker]);
 
   const handleRename = async () => {
     if (!localTitle.trim()) {
@@ -145,9 +152,10 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
   };
 
   const renderIcon = () => {
-    if (type === 'volume') return <span className="text-[11px]">{isExpanded ? '▼ 📁' : '▶ 📁'}</span>;
-    if (type === 'chapter') return <span className="text-[11px]">{isExpanded ? '▼ 📄' : '▶ 📄'}</span>;
-    return <span className="text-[11px]">📝</span>;
+    if (icon) return <span className="text-[14px] leading-none flex items-center">{icon}</span>;
+    if (type === 'volume') return <span className="text-[11px] leading-[1]">📁</span>;
+    if (type === 'chapter') return <span className="text-[11px] leading-[1]">{isExpanded ? '📂' : '📄'}</span>;
+    return <span className="text-[11px] leading-[1]">📝</span>;
   };
 
   return (
@@ -159,11 +167,22 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
           "group flex items-center justify-between h-8 px-2 rounded-lg cursor-pointer transition-all text-[13px]",
           isSelected 
             ? "bg-[var(--bg-hover)] text-[var(--text-primary)] border-l-[3px] border-l-[var(--accent)]" 
-            : "border-l-[3px] border-l-transparent hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            : "border-l-[3px] border-l-transparent hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+          isOver && type !== 'scene' && "ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--bg-base)]"
         )}
       >
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <span className="flex-shrink-0 w-7 text-center">{renderIcon()}</span>
+        <div className="flex items-center gap-1.5 overflow-hidden w-full">
+          <div className="flex items-center flex-shrink-0 transition-transform">
+            {(type === 'volume' || type === 'chapter') && (
+              <span className={cn(
+                "w-4 h-4 flex items-center justify-center text-[10px] text-[var(--text-disabled)] transition-transform",
+                isExpanded ? "rotate-90" : ""
+              )}>
+                ▶
+              </span>
+            )}
+          </div>
+          <span className="flex-shrink-0 text-center w-5 flex justify-center">{renderIcon()}</span>
           {isRenaming ? (
             <input
               ref={inputRef}
@@ -176,7 +195,7 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="truncate">{title}</span>
+            <span className="truncate w-full text-left">{title}</span>
           )}
         </div>
         
@@ -227,6 +246,18 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
           >
             이름 변경
           </button>
+          <button
+            ref={triggerRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowIconPicker(!showIconPicker);
+              setIsMenuOpen(false);
+            }}
+            className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-hover)] transition-colors rounded-md mx-1"
+            style={{ width: 'calc(100% - 8px)' }}
+          >
+            아이콘 변경
+          </button>
           <div className="h-px bg-[var(--divider)] my-1" />
           <button 
             onClick={handleDelete}
@@ -236,6 +267,16 @@ export function BinderItem({ id, type, title, level, wordCount, isExpanded, onSe
             삭제
           </button>
         </div>
+      )}
+
+      {showIconPicker && (
+        <IconPicker 
+          id={id} 
+          type={type} 
+          currentIcon={icon}
+          triggerRef={triggerRef}
+          onClose={() => setShowIconPicker(false)} 
+        />
       )}
 
       {isExpanded && children}
