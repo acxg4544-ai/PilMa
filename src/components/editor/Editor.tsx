@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { EditorRoot, EditorContent } from 'novel';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import { useLiveQuery } from 'dexie-react-hooks';
 import CharacterCount from '@tiptap/extension-character-count';
 import { InputRule } from '@tiptap/core';
 import { useUiStore } from '@/store/uiStore';
@@ -28,6 +29,11 @@ export default function NovelEditor() {
   
   const setWordCount = useUiStore((state) => state.setWordCount);
   const currentSceneId = useUiStore((state) => state.currentSceneId);
+  const currentScene = useLiveQuery(
+    () => (currentSceneId ? db.scenes.get(currentSceneId) : undefined),
+    [currentSceneId]
+  );
+  
   const setCurrentProject = useUiStore((state) => state.setCurrentProject);
   const setCurrentScene = useUiStore((state) => state.setCurrentScene);
 
@@ -550,7 +556,7 @@ export default function NovelEditor() {
               className="flex items-center gap-1.5 text-[14px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors w-full text-left"
             >
               {isPlotOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              <span>이번 회차 플롯</span>
+              <span>📋 이번 회차 플롯 ({currentScene?.title || "제목 없음"})</span>
             </button>
             {isPlotOpen && (
               <textarea
