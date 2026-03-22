@@ -15,7 +15,7 @@ async function sha256(source: string) {
 
 export function useAiCache() {
   const currentProjectId = useProjectStore(state => state.currentProjectId);
-  const setActiveCache = useAiStore(state => state.setActiveCache);
+  const { setActiveCache, addWorldContextBulk } = useAiStore();
   
   const [isUploading, setIsUploading] = useState(false);
   const [cacheMessage, setCacheMessage] = useState<string | null>(null);
@@ -46,9 +46,21 @@ export function useAiCache() {
       const volumes = await db.volumes.where('projectId').equals(currentProjectId).toArray();
       volumes.sort((a, b) => a.order - b.order);
       
+      const worldbuildingKeywords = ['세계관', '설정', 'worldbuilding'];
+      const isWorldbuilding = (title: string, icon?: string) => {
+        const titleLower = title.toLowerCase();
+        return (
+          icon === '🗺️' || 
+          icon === '🌍' || 
+          worldbuildingKeywords.some(k => titleLower.includes(k))
+        );
+      };
+
       let fullText = '';
+      const worldContextCards: { id: string; title: string; content: string }[] = [];
       
       for (const vol of volumes) {
+        const isVolWB = isWorldbuilding(vol.title, vol.icon);
         const chapters = await db.chapters.where('volumeId').equals(vol.id).toArray();
         chapters.sort((a, b) => a.order - b.order);
         
@@ -58,11 +70,26 @@ export function useAiCache() {
           
           for (const scene of scenes) {
             const rawText = extractPlainText(scene.content);
-            if (rawText) {
+            if (!rawText) continue;
+
+            if (isVolWB) {
+              // 세계관 데이터로 분류
+              worldContextCards.push({
+                id: scene.id,
+                title: `${vol.title} - ${chap.title} - ${scene.title}`,
+                content: rawText
+              });
+            } else {
+              // 일반 본문으로 분류
               fullText += `[${chap.title} - ${scene.title}]\n${rawText}\n\n`;
             }
           }
         }
+      }
+
+      // 세계관 데이터가 있으면 스토어에 추가
+      if (worldContextCards.length > 0) {
+        addWorldContextBulk(worldContextCards);
       }
 
       if (fullText.trim().length === 0) {

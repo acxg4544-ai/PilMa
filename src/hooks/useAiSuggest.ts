@@ -25,7 +25,7 @@ export function useAiSuggest() {
     setLastUsedPrompt(customPrompt || '다음에 올 문장 제안');
 
     try {
-      const worldContext = useAiStore.getState().worldContext.map(c => c.content);
+      const worldContext = useAiStore.getState().worldContext.map(c => `[${c.title}]\n${c.content}`);
       const response = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

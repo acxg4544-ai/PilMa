@@ -11,13 +11,42 @@ interface IconPickerProps {
   triggerRef: React.RefObject<HTMLElement | null>;
 }
 
-const ICONS = [
-  '📁', '📂', '📝', '✏️', '⭐', '📌', '🔒', '🗑️', '💡', '🎭', '🗺️', '📋'
-];
+const ICON_CATEGORIES = {
+  캐릭터: [
+    { icon: '🧑', name: '인물' }, { icon: '👤', name: '주인공' }, { icon: '👥', name: '그룹' }, { icon: '🦹', name: '빌런' },
+    { icon: '👸', name: '귀족' }, { icon: '🧙', name: '마법사' }, { icon: '⚔️', name: '전사' }, { icon: '🤖', name: '기계' }
+  ],
+  장소: [
+    { icon: '🏰', name: '성' }, { icon: '🏠', name: '집' }, { icon: '🌆', name: '도시' }, { icon: '🏔️', name: '산' },
+    { icon: '🌊', name: '바다' }, { icon: '🌲', name: '숲' }, { icon: '🗺️', name: '지도' }, { icon: '🌍', name: '세계' },
+    { icon: '🏛️', name: '신전' }, { icon: '🏚️', name: '폐허' }
+  ],
+  사물: [
+    { icon: '💎', name: '보석' }, { icon: '🗡️', name: '무기' }, { icon: '📜', name: '두루마리' }, { icon: '🔮', name: '마법' },
+    { icon: '💊', name: '약' }, { icon: '🔑', name: '열쇠' }, { icon: '👑', name: '왕관' }, { icon: '🛡️', name: '방패' }
+  ],
+  이벤트: [
+    { icon: '⚡', name: '사건' }, { icon: '💀', name: '죽음' }, { icon: '💕', name: '로맨스' }, { icon: '🤝', name: '동맹' },
+    { icon: '💢', name: '갈등' }, { icon: '🎭', name: '반전' }, { icon: '🏆', name: '승리' }, { icon: '💔', name: '이별' }
+  ],
+  기본: [
+    { icon: '📁', name: '폴더' }, { icon: '📂', name: '열린폴더' }, { icon: '📝', name: '문서' }, { icon: '✏️', name: '작업중' },
+    { icon: '⭐', name: '즐겨찾기' }, { icon: '📌', name: '중요' }, { icon: '🔒', name: '잠금' }, { icon: '🗑️', name: '휴지통' },
+    { icon: '💡', name: '아이디어' }, { icon: '📋', name: '메모' }, { icon: '🔖', name: '북마크' }, { icon: '📎', name: '참고' },
+    { icon: '✅', name: '완료' }, { icon: '❌', name: '보류' }, { icon: '🕐', name: '예정' }
+  ],
+  감정: [
+    { icon: '😂', name: '코믹' }, { icon: '😢', name: '슬픔' }, { icon: '😱', name: '공포' }, { icon: '🔥', name: '열정' },
+    { icon: '❄️', name: '냉정' }, { icon: '🌙', name: '밤' }, { icon: '☀️', name: '낮' }
+  ]
+};
+
+type Category = keyof typeof ICON_CATEGORIES;
 
 export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconPickerProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<Category>('기본');
 
   useEffect(() => {
     setMounted(true);
@@ -69,39 +98,58 @@ export function IconPicker({ id, type, currentIcon, onClose, triggerRef }: IconP
   return createPortal(
     <div
       ref={popoverRef}
-      className="z-[9999] w-48 bg-[var(--bg-card)] rounded-[8px] p-2 select-none"
+      className="z-[9999] w-64 bg-[var(--bg-card)] rounded-[12px] p-0 select-none flex flex-col overflow-hidden"
       style={{
         border: '1px solid var(--border)',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-        top: triggerRef.current ? Math.min(triggerRef.current.getBoundingClientRect().bottom + 4, window.innerHeight - 150) : 0,
-        left: triggerRef.current ? Math.max(8, Math.min(triggerRef.current.getBoundingClientRect().left, window.innerWidth - 200)) : 0,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        top: triggerRef.current ? Math.min(triggerRef.current.getBoundingClientRect().bottom + 8, window.innerHeight - 320) : 0,
+        left: triggerRef.current ? Math.max(8, Math.min(triggerRef.current.getBoundingClientRect().left - 100, window.innerWidth - 264)) : 0,
         position: 'fixed'
       }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="text-[11px] text-[var(--text-disabled)] mb-2 px-1 font-semibold tracking-wider">아이콘 변경</div>
-      <div className="grid grid-cols-4 gap-1">
-        {ICONS.map((icon) => (
+      <div className="flex items-center gap-1 p-1 bg-[var(--bg-base)] border-b border-[var(--border)] overflow-x-auto no-scrollbar">
+        {(Object.keys(ICON_CATEGORIES) as Category[]).map((cat) => (
           <button
-            key={icon}
-            onClick={() => handleSelect(icon)}
+            key={cat}
+            onClick={() => setActiveTab(cat)}
             className={cn(
-              "h-8 flex items-center justify-center text-lg rounded-md hover:bg-[var(--bg-hover)] transition-colors",
-              currentIcon === icon && "bg-[var(--bg-hover)] border border-[var(--accent)]"
+              "px-2 py-1 text-[11px] font-medium rounded-md whitespace-nowrap transition-colors",
+              activeTab === cat ? "bg-[var(--accent)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
             )}
           >
-            {icon}
+            {cat}
           </button>
         ))}
       </div>
-      <div className="h-px bg-[var(--divider)] my-2" />
-      <button
-        onClick={handleReset}
-        className="w-full text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] py-1.5 rounded transition-colors"
-      >
-        기본 아이콘으로 복구
-      </button>
+
+      <div className="p-3">
+        <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto no-scrollbar">
+          {ICON_CATEGORIES[activeTab].map(({ icon, name }) => (
+            <button
+              key={icon}
+              onClick={() => handleSelect(icon)}
+              title={name}
+              className={cn(
+                "h-8 w-8 flex items-center justify-center text-xl rounded-lg hover:bg-[var(--bg-hover)] transition-all transform hover:scale-110",
+                currentIcon === icon && "bg-[var(--bg-hover)] border-2 border-[var(--accent)]"
+              )}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
+        
+        <div className="h-px bg-[var(--divider)] my-3" />
+        
+        <button
+          onClick={handleReset}
+          className="w-full text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 py-2 rounded-lg transition-colors"
+        >
+          기본 아이콘으로 복구
+        </button>
+      </div>
     </div>,
     document.body
   );
