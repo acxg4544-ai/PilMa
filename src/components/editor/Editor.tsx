@@ -212,6 +212,26 @@ export default function NovelEditor() {
     }
   }, [lastInsertionRequest, clearInsertRequest]);
 
+  // PIP 전환 시 유실 방지 핸들러
+  const toggleEditorPip = async (isPip: boolean) => {
+    if (editorRef.current && currentSceneId) {
+      const content = editorRef.current.getJSON();
+      const text = editorRef.current.getText();
+      
+      // 내용 유실 차단: 빈 본문이 아니면 저장
+      if (text.trim().length > 0) {
+        setInitialContent(content); // 리마운트용 초기값 즉시 갱신
+        await db.scenes.update(currentSceneId, {
+          content,
+          wordCount: text.length,
+          updatedAt: Date.now()
+        });
+      }
+    }
+    setEditorPipMode(isPip);
+    setEditorKey(prev => prev + 1); // 에디터 인스턴스 재생성 유도
+  };
+
   // (프로젝트 초기화 로직은 project/[id]/page.tsx 로 이동되어 제거됨)
 
   // 씬 콘텐츠 로드
@@ -667,7 +687,7 @@ export default function NovelEditor() {
       {/* PIP & 복사 */}
       {!editorPipMode && (
         <button
-          onClick={() => setEditorPipMode(true)}
+          onClick={() => toggleEditorPip(true)}
           className="w-8 h-8 flex items-center justify-center text-[var(--text-disabled)] hover:text-[var(--text-primary)] transition-all"
           title="플로팅(PIP) 모드로 분리"
         >
@@ -865,7 +885,7 @@ export default function NovelEditor() {
         <div className="w-full max-w-[500px] min-h-[30vh] bg-[var(--bg-editor)]/40 border border-dashed border-[var(--border)] rounded-xl my-6 flex flex-col items-center justify-center p-8 text-center text-[var(--text-secondary)]">
             <h3 className="text-sm font-semibold mb-2 text-[var(--text-primary)]">✨ 에디터가 PIP 모드로 전환되었습니다.</h3>
             <p className="text-xs opacity-70 mb-5">화면 위에 떠 있는 플로팅 창에서 작업을 계속할 수 있습니다.</p>
-            <button onClick={() => setEditorPipMode(false)} className="px-4 py-2 bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] rounded-md text-xs font-medium transition-colors border border-[var(--divider)] shadow-sm">
+            <button onClick={() => toggleEditorPip(false)} className="px-4 py-2 bg-[var(--bg-hover)] hover:bg-[var(--border)] text-[var(--text-primary)] rounded-md text-xs font-medium transition-colors border border-[var(--divider)] shadow-sm">
               원래 자리로 돌려놓기
             </button>
         </div>
@@ -875,8 +895,8 @@ export default function NovelEditor() {
           title={<span className="font-semibold text-[14px]">에디터 ✨</span>}
           position={editorPipPosition}
           onPositionChange={setEditorPipPosition}
-          onRestore={() => setEditorPipMode(false)}
-          onClose={() => setEditorPipMode(false)}
+          onRestore={() => toggleEditorPip(false)}
+          onClose={() => toggleEditorPip(false)}
           minWidth={isMobileView ? 400 : 500} // 최소 너비 약간 상향 (잘림 방지)
           minHeight={400}
           controls={controlsBar}
