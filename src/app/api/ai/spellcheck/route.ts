@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
 
   const dictStr = dictionary && dictionary.length > 0 
     ? `\n다음 단어들은 고유명사이거나 작가가 허용한 단어입니다. 이 단어 자체는 물론, 이 단어 뒤에 한국어 조사(은/는/이/가/을/를/의/에/에서/도/만/로/으로/과/와/한테/께/부터/까지 등)가 붙은 형태도 절대 오류로 잡지 마세요: [${dictionary.join(', ')}]` 

@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Project } from '@/lib/db';
-import { Star, Camera, Loader2, MoreVertical, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Project, db } from '@/lib/db';
+import { Star, Camera, Loader2, MoreVertical, Edit2, Trash2, Image as ImageIcon, Download } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { supabase } from '@/lib/supabase';
 
@@ -159,6 +159,91 @@ export function ProjectCard({
     }
   };
 
+  const handleDownloadTxt = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMenuOpen(false);
+
+    try {
+      // 1. 데이터 로드 (Volumes -> Chapters -> Scenes)
+      const volumes = await db.volumes.where('projectId').equals(project.id).sortBy('order');
+      let fullText = '';
+
+      for (const volume of volumes) {
+        // 세계관 폴더 제외 (🗺️, 🌍 아이콘 또는 이름에 '세계관' 포함)
+        const isWorldview = volume.icon === '🗺️' || volume.icon === '🌍' || volume.title.includes('세계관');
+        if (isWorldview) continue;
+
+        // 볼륨 제목 추가
+        fullText += `【${volume.title}】\n\n`;
+
+        const chapters = await db.chapters.where('volumeId').equals(volume.id).sortBy('order');
+        for (const chapter of chapters) {
+          // 챕터 제목 추가
+          fullText += `── ${chapter.title} ──\n\n`;
+
+          const scenes = await db.scenes.where('chapterId').equals(chapter.id).sortBy('order');
+          for (const scene of scenes) {
+            if (!scene.content) continue;
+
+            // TipTap JSON/HTML -> Text 변환
+            let sceneText = '';
+            if (typeof scene.content === 'string') {
+              // HTML인 경우 (간단한 태그 제거)
+              sceneText = scene.content
+                .replace(/<p>/g, '')
+                .replace(/<\/p>/g, '\n')
+                .replace(/<br\s*\/?>/g, '\n')
+                .replace(/<[^>]*>/g, '')
+                .trim();
+            } else if (scene.content.content) {
+              // TipTap JSON인 경우
+              const extractText = (nodes: any[]): string => {
+                return nodes.map(node => {
+                  if (node.type === 'text') return node.text || '';
+                  if (node.content) {
+                    const childText = extractText(node.content);
+                    if (node.type === 'paragraph' || node.type === 'heading') return childText + '\n';
+                    return childText;
+                  }
+                  if (node.type === 'paragraph' || node.type === 'heading') return '\n';
+                  return '';
+                }).join('');
+              };
+              sceneText = extractText(scene.content.content).trim();
+            }
+
+            if (!sceneText) continue;
+
+            // 회차 제목 및 본문 결합
+            fullText += `===== ${scene.title} =====\n\n`;
+            fullText += sceneText;
+            fullText += '\n\n\n'; // 회차 간 간격 (지시사항: 빈 줄 2개 포함이므로 \n\n\n)
+          }
+        }
+      }
+
+      if (!fullText.trim()) {
+        alert('다운로드할 내용이 없습니다.');
+        return;
+      }
+
+      // 2. 파일 다운로드 실행
+      const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${project.title}_전체원고.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.error('Failed to download project TXT:', err);
+      alert('파일 생성 중 오류가 발생했습니다.');
+    }
+  };
+
   const formattedDate = new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).format(new Date(project.updatedAt));
@@ -226,6 +311,13 @@ export function ProjectCard({
           
           {isMenuOpen && (
             <div className="absolute top-full mt-2 right-0 w-32 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+              <button 
+                onClick={handleDownloadTxt}
+                className="w-full px-3 py-2 flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+              >
+                <Download size={13} />
+                <span>전체 다운로드 (TXT)</span>
+              </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onEdit(); }}
                 className="w-full px-3 py-2 flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
