@@ -90,54 +90,6 @@ export default function NovelEditor() {
     return () => window.removeEventListener('storage', checkReplaceEnabled);
   }, []);
 
-  const textReplacementExtension = React.useMemo(() => {
-    return Extension.create({
-      name: 'textReplacement',
-      addProseMirrorPlugins() {
-        return [
-          new Plugin({
-            key: new PluginKey('textReplacement'),
-            props: {
-              handleKeyDown: (view, event) => {
-                if (!replaceEnabled || replacements.length === 0) return false;
-                
-                // 스페이스(32) 또는 엔터(13) 입력 시 치환 시도
-                if (event.key === ' ' || event.key === 'Enter') {
-                  const { state } = view;
-                  const { selection } = state;
-                  const { $from, empty } = selection;
-                  
-                  if (empty) {
-                    // 커서 이전 텍스트 20자 정도 확인
-                    const textBefore = $from.parent.textBetween(Math.max(0, $from.parentOffset - 20), $from.parentOffset, undefined, ' ');
-                    const match = textBefore.match(/(\S+)$/); // 마지막 단어 추출
-                    
-                    if (match) {
-                      const word = match[1];
-                      const rep = replacements.find(r => r.from === word);
-                      
-                      if (rep) {
-                        const start = $from.pos - word.length;
-                        const end = $from.pos;
-                        // 트랜잭션 수동 디스패치 (단어 치환)
-                        const tr = state.tr.insertText(rep.to, start, end);
-                        view.dispatch(tr);
-                        
-                        // 이벤트는 계속 흐르게 두어 스페이스/엔터가 뒤에 붙게 함
-                        return false; 
-                      }
-                    }
-                  }
-                }
-                return false;
-              }
-            }
-          })
-        ];
-      }
-    });
-  }, [replacements, replaceEnabled]);
-
   // 맞춤법 검사 상태
   const [isSpellCheckOpen, setIsSpellCheckOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -577,6 +529,49 @@ export default function NovelEditor() {
     // 무거운 작업 금지 및 글자수 업데이트 최적화 (300ms debounce)
     const content = editor.getJSON();
     const text = editor.getText();
+    
+    // 텍스트 대치 (자동 치환) 로직 통합
+    if (replaceEnabled && replacements.length > 0) {
+      const { state, view } = editor;
+      const { selection } = state;
+      const { $from, empty } = selection;
+      
+      // 커서 바로 앞의 텍스트가 공백/줄바꿈으로 끝난다면 (스페이스/엔터 입력된 상태)
+      if (empty) {
+        // 현재 블록(패러그래프)에서의 텍스트 추출 (최대 30자)
+        const textInBlock = $from.parent.textBetween(Math.max(0, $from.parentOffset - 30), $from.parentOffset, undefined, ' ');
+        const isTriggerChar = textInBlock.endsWith(' ') || textInBlock.endsWith('\n') || textInBlock.length === 0;
+
+        // 엔터의 경우 커서가 이미 다음 패러그래프로 넘어갔을 가능성이 큼 ($from.parentOffset === 0)
+        if ($from.parentOffset === 0) {
+          // 커서 이전 노드(완료된 문장) 확인
+          const posBefore = $from.pos - 1;
+          const nodeBefore = state.doc.nodeAt(posBefore - 1); // paragraph split 전 위치?
+          // 간단히 이전 블록의 마지막 텍스트 확인
+          state.doc.nodesBetween($from.pos - 2, $from.pos - 1, (node: any, pos: number) => {
+             if (node.isText) {
+                const words = node.text?.split(/\s+/) || [];
+                const lastWord = words[words.length - 1];
+                const rep = replacements.find(r => r.from === lastWord);
+                if (rep) {
+                    editor.commands.insertContentAt({ from: pos + node.text!.length - lastWord.length, to: pos + node.text!.length }, rep.to);
+                }
+             }
+          });
+        } else if (textInBlock.endsWith(' ')) {
+          // 스페이스 입력 감지
+          const words = textInBlock.trimEnd().split(/\s+/);
+          const lastWord = words[words.length - 1];
+          const rep = replacements.find(r => r.from === lastWord);
+          if (rep) {
+            const start = $from.pos - 1 - lastWord.length;
+            const end = $from.pos - 1;
+            editor.commands.insertContentAt({ from: start, to: end }, rep.to);
+          }
+        }
+      }
+    }
+
     const count = text.replace(/\r?\n/g, '').length;
 
     // 즉시 triggerAutoSave (내부에서 3s debounce 됨)
@@ -588,7 +583,7 @@ export default function NovelEditor() {
       setWordCount(count);
       lastCharCountRef.current = count;
     }, 300);
-  }, [setWordCount, triggerAutoSave]);
+  }, [setWordCount, triggerAutoSave, replaceEnabled, replacements]);
 
   const handleSelectionUpdate = useCallback(({ editor }: { editor: any }) => {
     if (typewriterMode) {
@@ -1033,7 +1028,6 @@ export default function NovelEditor() {
                   CharacterCount,
                   findHighlightExtension,
                   spellCheckHighlightExtension,
-                  textReplacementExtension,
                   // 스마트 따옴표 InputRule
                   {
                     name: 'customInputRules',
