@@ -54,7 +54,7 @@ ${text}`;
     console.log('[Spellcheck] Sending prompt to Gemini... text length:', text.length);
 
     const result = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-3-flash-preview'),
       prompt: prompt,
       temperature: 0,
     });
