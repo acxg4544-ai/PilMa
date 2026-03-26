@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     }
 
     const result = await generateText({
-      model: google('gemini-3-flash'),
+      model: google('gemini-3-flash-preview'),
       system: '당신은 웹소설 전문 편집자입니다. 주어진 전체 원고는 본문 플롯 위주입니다. 세계관이나 설정 설명은 배제하고, 각 회차별 핵심 사건을 1~2줄로 요약하세요. [1화 제목] 요약문 형식으로 반환하세요.',
       prompt: `[작품명: ${projectName || '제목 미상'}]\n\n${text}`,
     });
