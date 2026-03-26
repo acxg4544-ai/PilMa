@@ -67,6 +67,10 @@ export default function NovelEditor() {
   const lastCharCountRef = useRef(0);
   const charCountTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 씬 전환 최적화 상태
+  const isTransitioningRef = useRef(false);
+  const lastSceneIdRef = useRef<string | null>(null);
+  
   // 맞춤법 검사 부가 상태
   const [fixedValues, setFixedValues] = useState<Record<number, string>>({});
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
@@ -390,25 +394,57 @@ export default function NovelEditor() {
   useEffect(() => {
     async function loadScene() {
       if (!currentSceneId) return;
+
+      // 1. 이전 씬 비동기 저장 시도 (await 안 기다리고 백그라운드)
+      if (editorRef.current && lastSceneIdRef.current && lastSceneIdRef.current !== currentSceneId) {
+        const oldId = lastSceneIdRef.current;
+        const oldContent = editorRef.current.getJSON();
+        const oldText = editorRef.current.getText();
+        const oldPlot = plotRef.current;
+        
+        // 백그라운드 업데이트 (UI 블로킹 방지)
+        db.scenes.update(oldId, {
+          content: oldContent,
+          wordCount: oldText.replace(/\r?\n/g, '').length,
+          plot: oldPlot,
+          updatedAt: Date.now()
+        }).catch(err => console.error('Background save failed:', err));
+      }
+
+      lastSceneIdRef.current = currentSceneId;
+      isTransitioningRef.current = true;
       setIsLoading(true);
+
       try {
         const scene = await db.scenes.get(currentSceneId);
         if (scene) {
-          setInitialContent(scene.content || { type: 'doc', content: [{ type: 'paragraph' }] });
-          const initialPlot = scene.plot || '';
-          setPlot(initialPlot);
-          plotRef.current = initialPlot;
+          // 2. 2단계 로딩: 먼저 빈 content 세팅하여 에디터 DOM 리셋 부하 분산
+          setInitialContent({ type: 'doc', content: [{ type: 'paragraph' }] });
           
-          // 씬 전환 시 즉시 글자수 계산 시도 (에디터 로드 전이면 scene 데이터 사용)
-          setWordCount(scene.wordCount || 0);
-          lastCharCountRef.current = scene.wordCount || 0;
-          
-          setEditorKey(prev => prev + 1);
+          requestAnimationFrame(() => {
+            // 3. 실제 content 세팅 (레이아웃 스래싱 방지)
+            setInitialContent(scene.content || { type: 'doc', content: [{ type: 'paragraph' }] });
+            const initialPlot = scene.plot || '';
+            setPlot(initialPlot);
+            plotRef.current = initialPlot;
+            
+            // 글자수는 DB 데이터를 즉시 반영하여 UI 끊김 방지
+            setWordCount(scene.wordCount || 0);
+            lastCharCountRef.current = scene.wordCount || 0;
+            
+            setEditorKey(prev => prev + 1);
+            
+            // 4. 나머지 무거운 작업들(AI 캐시, 글자수 정밀 재계산 등)은 500ms 뒤에 실행
+            setTimeout(() => {
+              isTransitioningRef.current = false;
+              setIsLoading(false);
+            }, 500);
+          });
         }
       } catch (err) {
         console.error('Failed to load scene:', err);
-      } finally {
         setIsLoading(false);
+        isTransitioningRef.current = false;
       }
     }
     loadScene();
@@ -417,7 +453,8 @@ export default function NovelEditor() {
   // 5초마다 글자수 강제 재계산 (정확도 보정)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (editorRef.current) {
+      // 씬 전환 중에는 실행 금지
+      if (editorRef.current && !isTransitioningRef.current) {
         const text = editorRef.current.getText();
         // 줄바꿈 제외 카운트 (문피아 기준)
         const count = text.replace(/\r?\n/g, '').length;
@@ -523,7 +560,8 @@ export default function NovelEditor() {
   };
 
   const handleUpdate = useCallback((editor: any) => {
-    if (!editor) return;
+    // 씬 전환 중이거나 에디터가 없으면 업데이트 무시
+    if (!editor || isTransitioningRef.current) return;
     editorRef.current = editor;
     
     // 무거운 작업 금지 및 글자수 업데이트 최적화 (300ms debounce)
