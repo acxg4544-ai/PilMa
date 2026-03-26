@@ -23,11 +23,11 @@ export async function POST(req: NextRequest) {
     const prompt = `You are a Korean spelling and grammar correction expert. Review the following Korean web novel text and find errors.
 
 Check for:
-1. Spelling errors (e.g. 됬다 -> 됐다)
-2. Spacing errors (e.g. 할수있다 -> 할 수 있다)
-3. Typos (e.g. 겈찮아 -> 괜찮아)
-4. Particle errors (e.g. 를 -> 을)
-5. Double passive/causative (e.g. 보여지다 -> 보이다)
+1. Spelling errors
+2. Spacing errors
+3. Typos
+4. Particle errors
+5. Double passive/causative
 
 Rules:
 - Do NOT flag web novel style, casual speech, or interjections as errors.${dictStr}
