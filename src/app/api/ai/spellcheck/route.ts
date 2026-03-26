@@ -10,55 +10,65 @@ export async function POST(req: NextRequest) {
 
     const API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!API_KEY) {
-      return NextResponse.json({ error: 'no key', results: [] });
+      return NextResponse.json({ results: [] });
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-3-flash' });
 
     const dictStr = dictionary && dictionary.length > 0
-      ? `\nIMPORTANT: The following words are proper nouns registered by the user. Do NOT flag these words or any form with Korean particles (은/는/이/가/을/를/에서/도/만/으로/과/와/한테/께/부터/까지) attached as errors: [${dictionary.join(', ')}]`
+      ? `\nThe following words are proper nouns registered by the user. Do NOT flag these words or any form with Korean particles attached: [${dictionary.join(', ')}]`
       : '';
 
-    const prompt = `You are a Korean proofreading expert. Find spelling and grammar errors in the following Korean text.
+    const prompt = `You are a Korean spelling and grammar correction expert. Review the following Korean web novel text and find errors.
 
-Error types to check:
-1. Misspelling (ex: 됬다 should be 됐다, 안돼 should be 안 돼)
-2. Spacing errors (ex: 할수있다 should be 할 수 있다)
-3. Typos (ex: 겈찮아 should be 괜찮아)
-4. Wrong particles (ex: 를 should be 을)
-5. Double passive (ex: 보여지다 should be 보이다)
+Check for:
+1. Spelling errors (e.g. 됬다 -> 됐다)
+2. Spacing errors (e.g. 할수있다 -> 할 수 있다)
+3. Typos (e.g. 겈찮아 -> 괜찮아)
+4. Particle errors (e.g. 를 -> 을)
+5. Double passive/causative (e.g. 보여지다 -> 보이다)
 
 Rules:
-- Do NOT flag casual speech, web novel style, interjections, or onomatopoeia.${dictStr}
-- Only flag CLEAR errors. Skip anything ambiguous.
-- Return ONLY a raw JSON array. No markdown, no code blocks, no explanation.
+- Do NOT flag web novel style, casual speech, or interjections as errors.${dictStr}
+- Only flag clear errors. Skip ambiguous cases.
+- Return ONLY a JSON array, no other text.
 
-Output format: [{"original":"wrong","suggestions":["fix"],"reason":"Korean explanation"}]
-If no errors: return []
+Format: [{ "original": "wrong text", "suggestions": ["correction"], "reason": "reason in Korean" }]
+Return [] if no errors found.
 
-Korean text to check:
+Text:
 ${text}`;
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0, maxOutputTokens: 2048 }
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 2048,
+      }
     });
 
     const responseText = result.response.text();
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
-    const filtered = parsed.filter((item: any) => {
-      if (!dictionary || dictionary.length === 0) return true;
-      return !dictionary.some((d: string) =>
-        item.original === d || item.original.includes(d) || d.includes(item.original)
-      );
-    });
+    try {
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
-    return NextResponse.json({ results: filtered });
+      const filtered = parsed.filter((item: any) => {
+        if (!dictionary || dictionary.length === 0) return true;
+        return !dictionary.some((d: string) =>
+          item.original === d ||
+          item.original.includes(d) ||
+          d.includes(item.original)
+        );
+      });
+
+      return NextResponse.json({ results: filtered });
+    } catch {
+      return NextResponse.json({ results: [] });
+    }
   } catch (err) {
     console.error('Spellcheck error:', err);
-    return NextResponse.json({ error: String(err), results: [] });
+    return NextResponse.json({ results: [] });
   }
 }
