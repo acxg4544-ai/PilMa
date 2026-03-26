@@ -66,7 +66,7 @@ export function Header() {
       <div className="flex items-center gap-2">
         {/* 글자수 배지 */}
         <div className="text-[12px] bg-[var(--bg-hover)] text-[var(--accent)] px-3 py-1 rounded-xl font-semibold tabular-nums select-none">
-          {wordCount.toLocaleString()}자
+          공백 포함 {wordCount.toLocaleString()}자
         </div>
 
         {/* AI 기능 (요약 업로드, 설정) */}

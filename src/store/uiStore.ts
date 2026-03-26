@@ -42,6 +42,8 @@ interface UiState {
   setSmartQuotes: (enabled: boolean) => void;
   typewriterMode: boolean;
   setTypewriterMode: (enabled: boolean) => void;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -94,6 +96,8 @@ export const useUiStore = create<UiState>()(
       setSmartQuotes: (enabled) => set({ smartQuotes: enabled }),
       typewriterMode: false,
       setTypewriterMode: (enabled) => set({ typewriterMode: enabled }),
+      searchTerm: '',
+      setSearchTerm: (term) => set({ searchTerm: term }),
     }),
     {
       name: 'pilma-layout-storage',

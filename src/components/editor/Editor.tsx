@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useLiveQuery } from 'dexie-react-hooks';
 import CharacterCount from '@tiptap/extension-character-count';
 import { InputRule, Extension } from '@tiptap/core';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useUiStore } from '@/store/uiStore';
 import { useAiStore } from '@/store/aiStore';
@@ -18,6 +18,7 @@ import { useAiSuggest } from '@/hooks/useAiSuggest';
 import { PipWindow } from '@/components/ui/PipWindow';
 import { SpellCheckPanel } from './SpellCheckPanel';
 import { HistoryPanel } from './HistoryPanel';
+import { FindReplacePanel } from './FindReplacePanel';
 import { cn } from '@/lib/utils';
 import { Clock, ChevronDown, ChevronRight, SquareArrowOutUpRight, Monitor, Smartphone, Maximize, ZoomIn, ZoomOut, Search, Quote, Keyboard, Copy, Check, Pencil, Bot } from 'lucide-react';
 
@@ -53,12 +54,18 @@ export default function NovelEditor() {
   const setSmartQuotes = useUiStore((state) => state.setSmartQuotes);
   const typewriterMode = useUiStore((state) => state.typewriterMode);
   const setTypewriterMode = useUiStore((state) => state.setTypewriterMode);
+  const searchTermStore = useUiStore((state) => state.searchTerm);
+  const setSearchTermStore = useUiStore((state) => state.setSearchTerm);
   
   const [isPresetOpen, setIsPresetOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const presetRef = useRef<HTMLDivElement>(null);
   const prevZoomRef = useRef(zoomLevel);
   const isSyncingSizeRef = useRef(false);
+  
+  // 글자수 업데이트 최적화를 위한 ref
+  const lastCharCountRef = useRef(0);
+  const charCountTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 맞춤법 검사 부가 상태
   const [fixedValues, setFixedValues] = useState<Record<number, string>>({});
@@ -105,6 +112,42 @@ export default function NovelEditor() {
   const [isSpellChecking, setIsSpellChecking] = useState(false);
   const [spellCheckResults, setSpellCheckResults] = useState<any[]>([]);
   const [replacedIndices, setReplacedIndices] = useState<Set<number>>(new Set());
+
+  // 찾아 바꾸기 상태
+  const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
+  const [findReplaceMode, setFindReplaceMode] = useState<'find' | 'replace'>('find');
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [findMatches, setFindMatches] = useState<{ from: number, to: number }[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
+
+  // 찾아 바꾸기 하이라이트 확장
+  const findHighlightExtension = React.useMemo(() => {
+    return Extension.create({
+      name: 'findHighlight',
+      addProseMirrorPlugins() {
+        return [
+          new Plugin({
+            key: new PluginKey('findHighlight'),
+            props: {
+              decorations: (state) => {
+                if (!findText || findMatches.length === 0) return null;
+                const decorations: Decoration[] = [];
+                findMatches.forEach((match, idx) => {
+                  decorations.push(
+                    Decoration.inline(match.from, match.to, {
+                      class: idx === currentMatchIndex ? 'find-highlight-current' : 'find-highlight'
+                    })
+                  );
+                });
+                return DecorationSet.create(state.doc, decorations);
+              }
+            }
+          })
+        ];
+      }
+    });
+  }, [findText, findMatches, currentMatchIndex]);
 
   // 맞춤법 하이라이트 확장을 위한 Decoration
   const spellCheckHighlightExtension = React.useMemo(() => {
@@ -189,6 +232,131 @@ export default function NovelEditor() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [zoomLevel, setZoomLevel]);
 
+  // 찾아 바꾸기 단축키 및 검색 로직
+  const findMatchesInDoc = useCallback((text: string) => {
+    if (!editorRef.current || !text) {
+      setFindMatches([]);
+      setCurrentMatchIndex(-1);
+      return;
+    }
+    const { doc } = editorRef.current.state;
+    const matches: { from: number, to: number }[] = [];
+    doc.descendants((node: any, pos: number) => {
+      if (node.isText) {
+        const content = node.text!;
+        let startPos = 0;
+        while ((startPos = content.indexOf(text, startPos)) !== -1) {
+          matches.push({ from: pos + startPos, to: pos + startPos + text.length });
+          startPos += text.length;
+        }
+      }
+    });
+    setFindMatches(matches);
+    if (matches.length > 0) {
+      setCurrentMatchIndex(0);
+      // 첫 번째 결과로 이동
+      const { view } = editorRef.current;
+      const tr = view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, matches[0].from)
+      );
+      view.dispatch(tr.scrollIntoView());
+    } else {
+      setCurrentMatchIndex(-1);
+    }
+  }, []);
+
+  const handleNextMatch = useCallback(() => {
+    if (findMatches.length === 0 || !editorRef.current) return;
+    const nextIdx = (currentMatchIndex + 1) % findMatches.length;
+    setCurrentMatchIndex(nextIdx);
+    const match = findMatches[nextIdx];
+    const { view } = editorRef.current;
+    const tr = view.state.tr.setSelection(
+      TextSelection.create(view.state.doc, match.from)
+    );
+    view.dispatch(tr.scrollIntoView());
+  }, [findMatches, currentMatchIndex]);
+
+  const handlePrevMatch = useCallback(() => {
+    if (findMatches.length === 0 || !editorRef.current) return;
+    const prevIdx = (currentMatchIndex - 1 + findMatches.length) % findMatches.length;
+    setCurrentMatchIndex(prevIdx);
+    const match = findMatches[prevIdx];
+    const { view } = editorRef.current;
+    const tr = view.state.tr.setSelection(
+      TextSelection.create(view.state.doc, match.from)
+    );
+    view.dispatch(tr.scrollIntoView());
+  }, [findMatches, currentMatchIndex]);
+
+  const executeReplaceMatch = useCallback((replacement: string) => {
+    if (currentMatchIndex === -1 || findMatches.length === 0 || !editorRef.current) return;
+    const match = findMatches[currentMatchIndex];
+    editorRef.current.commands.insertContentAt({ from: match.from, to: match.to }, replacement);
+    // 재검색
+    setTimeout(() => findMatchesInDoc(findText), 10);
+  }, [currentMatchIndex, findMatches, findText, findMatchesInDoc]);
+
+  const handleReplaceAll = useCallback((target: string, replacement: string) => {
+    if (!editorRef.current || !target) return;
+    const editor = editorRef.current;
+    let content = editor.getText();
+    if (!content.includes(target)) return;
+    
+    // 단순 텍스트 교체가 아닌 에디터 명령어로 실행 (히스토리 보존)
+    let offset = 0;
+    const matches: { from: number, to: number }[] = [];
+    editor.state.doc.descendants((node: any, pos: number) => {
+        if (node.isText) {
+            const text = node.text!;
+            let s = 0;
+            while ((s = text.indexOf(target, s)) !== -1) {
+                matches.push({ from: pos + s, to: pos + s + target.length });
+                s += target.length;
+            }
+        }
+    });
+
+    // 뒤에서부터 순차적으로 교체해야 포지션 안 꼬임
+    for (let i = matches.length - 1; i >= 0; i--) {
+        const m = matches[i];
+        editor.commands.insertContentAt({ from: m.from, to: m.to }, replacement);
+    }
+    
+    setTimeout(() => findMatchesInDoc(findText), 50);
+  }, [findText, findMatchesInDoc]);
+
+  useEffect(() => {
+    const handleFindKeys = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        setFindReplaceMode('find');
+        setIsFindReplaceOpen(true);
+      } else if (e.ctrlKey && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        setFindReplaceMode('replace');
+        setIsFindReplaceOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleFindKeys);
+    return () => window.removeEventListener('keydown', handleFindKeys);
+  }, []);
+
+  // 외부(바인더 검색)로부터 온 검색어 처리
+  useEffect(() => {
+    if (searchTermStore && editorRef.current && !isLoading) {
+      setFindText(searchTermStore);
+      setFindReplaceMode('find');
+      setIsFindReplaceOpen(true);
+      // 검색 실행
+      setTimeout(() => {
+        findMatchesInDoc(searchTermStore);
+        // 처리 후 소모됨 처리 (무한 루프 방지)
+        setSearchTermStore('');
+      }, 500);
+    }
+  }, [searchTermStore, isLoading, findMatchesInDoc, setSearchTermStore]);
+
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -246,7 +414,11 @@ export default function NovelEditor() {
           const initialPlot = scene.plot || '';
           setPlot(initialPlot);
           plotRef.current = initialPlot;
+          
+          // 씬 전환 시 즉시 글자수 계산 시도 (에디터 로드 전이면 scene 데이터 사용)
           setWordCount(scene.wordCount || 0);
+          lastCharCountRef.current = scene.wordCount || 0;
+          
           setEditorKey(prev => prev + 1);
         }
       } catch (err) {
@@ -257,6 +429,21 @@ export default function NovelEditor() {
     }
     loadScene();
   }, [currentSceneId, setWordCount]);
+
+  // 5초마다 글자수 강제 재계산 (정확도 보정)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (editorRef.current) {
+        const text = editorRef.current.getText();
+        const count = text.length;
+        if (count !== lastCharCountRef.current) {
+          setWordCount(count);
+          lastCharCountRef.current = count;
+        }
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [setWordCount]);
 
 
 
@@ -357,12 +544,20 @@ export default function NovelEditor() {
     if (!editor) return;
     editorRef.current = editor;
     
+    // 무거운 작업 금지 및 글자수 업데이트 최적화 (300ms debounce)
+    const content = editor.getJSON();
     const text = editor.getText();
     const count = text.length;
-    const content = editor.getJSON();
-    
-    setWordCount(count);
+
+    // 즉시 triggerAutoSave (내부에서 3s debounce 됨)
     triggerAutoSave(content, count, plotRef.current);
+
+    // UI 글자수 업데이트는 300ms debounce (타이핑 렉 방지)
+    if (charCountTimeoutRef.current) clearTimeout(charCountTimeoutRef.current);
+    charCountTimeoutRef.current = setTimeout(() => {
+      setWordCount(count);
+      lastCharCountRef.current = count;
+    }, 300);
   }, [setWordCount, triggerAutoSave]);
 
   const handleSelectionUpdate = useCallback(({ editor }: { editor: any }) => {
@@ -623,6 +818,19 @@ export default function NovelEditor() {
         <Pencil size={20} />
       </button>
       <button
+        onClick={() => {
+            setFindReplaceMode('find');
+            setIsFindReplaceOpen(!isFindReplaceOpen);
+        }}
+        className={cn(
+          "w-8 h-8 flex items-center justify-center rounded-md transition-all",
+          isFindReplaceOpen ? "text-[var(--accent)]" : "text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+        )}
+        title="찾기 및 바꾸기 (Ctrl+F / Ctrl+H)"
+      >
+        <Search size={20} />
+      </button>
+      <button
         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
         className={cn(
           "w-8 h-8 flex items-center justify-center rounded-md transition-all",
@@ -793,6 +1001,8 @@ export default function NovelEditor() {
                     emptyEditorClass: "is-editor-empty",
                   }),
                   CharacterCount,
+                  findHighlightExtension,
+                  spellCheckHighlightExtension,
                   // 스마트 따옴표 및 사용자 대치 InputRule
                   {
                     name: 'customInputRules',
@@ -828,6 +1038,15 @@ export default function NovelEditor() {
                    background: rgba(196, 74, 74, 0.15);
                    border-bottom: 2px wavy var(--danger);
                    transition: background 0.2s;
+                }
+                .find-highlight {
+                  background: rgba(255, 200, 0, 0.3);
+                  border-radius: 2px;
+                }
+                .find-highlight-current {
+                  background: rgba(255, 150, 0, 0.5);
+                  border-radius: 2px;
+                  box-shadow: 0 0 0 1px orange;
                 }
               `}</style>
             </EditorRoot>
@@ -887,6 +1106,29 @@ export default function NovelEditor() {
           onClose={() => setIsHistoryOpen(false)}
         />
       )}
+
+      {isFindReplaceOpen && (
+        <FindReplacePanel 
+          mode={findReplaceMode}
+          findText={findText}
+          replaceText={replaceText}
+          setFindText={setFindText}
+          setReplaceText={setReplaceText}
+          currentIndex={currentMatchIndex}
+          totalMatches={findMatches.length}
+          onClose={() => {
+              setIsFindReplaceOpen(false);
+              setFindMatches([]);
+              setFindText('');
+          }}
+          onFind={findMatchesInDoc}
+          onFindNext={handleNextMatch}
+          onFindPrev={handlePrevMatch}
+          onReplace={executeReplaceMatch}
+          onReplaceAll={handleReplaceAll}
+        />
+      )}
+
 
     </div>
   );

@@ -7,7 +7,7 @@ import { useBinderStore } from '@/store/binderStore';
 import { useUiStore } from '@/store/uiStore';
 import { useProjectStore } from '@/store/projectStore';
 import { BinderItem } from './BinderItem';
-import { FolderPlus, Settings } from 'lucide-react';
+import { FolderPlus, Settings, Search, X } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import {
@@ -55,7 +55,71 @@ export function Binder() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // 검색 상태
+  const [searchTerm, setLocalSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // 씬 텍스트 추출 함수 (TipTap JSON -> Plain Text)
+  const extractText = (node: any): string => {
+    if (!node) return '';
+    if (typeof node === 'string') return node;
+    if (node.type === 'text') return node.text || '';
+    if (node.content && Array.isArray(node.content)) {
+      return node.content.map(extractText).join(node.type === 'paragraph' ? '\n' : ' ');
+    }
+    return '';
+  };
+
+  const handleSearch = (term: string) => {
+    setLocalSearchTerm(term);
+    if (!term.trim() || !scenes) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const results: any[] = [];
+    const lowerTerm = term.toLowerCase();
+
+    scenes.forEach(scene => {
+      const titleMatch = scene.title.toLowerCase().includes(lowerTerm);
+      const plainText = extractText(scene.content);
+      const textMatch = plainText.toLowerCase().includes(lowerTerm);
+
+      if (titleMatch || textMatch) {
+        let snippet = '';
+        if (textMatch) {
+          const index = plainText.toLowerCase().indexOf(lowerTerm);
+          const start = Math.max(0, index - 30);
+          const end = Math.min(plainText.length, index + term.length + 30);
+          snippet = plainText.substring(start, end);
+          if (start > 0) snippet = '...' + snippet;
+          if (end < plainText.length) snippet = snippet + '...';
+        }
+
+        results.push({
+          id: scene.id,
+          title: scene.title,
+          snippet,
+          matchCount: (plainText.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length + (titleMatch ? 1 : 0)
+        });
+      }
+    });
+
+    setSearchResults(results);
+  };
+
+  const clearSearch = () => {
+    setLocalSearchTerm('');
+    setSearchResults([]);
+    setIsSearching(false);
+  };
+
   const activeSensors = isRenamingId ? [] : sensors;
+  const setCurrentScene = useUiStore((state) => state.setCurrentScene);
+  const setSearchTerm = useUiStore((state) => state.setSearchTerm);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -259,8 +323,31 @@ export function Binder() {
         }
       `}</style>
       
+      {/* 검색창 */}
+      <div className="px-3 py-2 border-b border-[var(--divider)]">
+        <div className="relative group/search">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-disabled)] group-focus-within/search:text-[var(--accent)] transition-colors" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && clearSearch()}
+            placeholder="모든 문서에서 검색..."
+            className="w-full bg-[var(--bg-hover)] border border-transparent focus:border-[var(--accent)] rounded-lg pl-9 pr-8 py-1.5 text-[13px] text-[var(--text-primary)] focus:outline-none transition-all"
+          />
+          {searchTerm && (
+            <button 
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--text-disabled)] hover:text-[var(--text-primary)]"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 프로젝트 헤더 */}
-      {project && (
+      {project && !isSearching && (
         <div 
           className="px-4 py-2.5 group flex items-center justify-between border-b border-[var(--divider)]"
           onDoubleClick={() => setIsRenamingId(project.id)}
@@ -280,8 +367,43 @@ export function Binder() {
         </div>
       )}
 
+      {/* 검색 결과 레이어 */}
+      {isSearching && (
+        <div className="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1">
+          <div className="px-2 py-1.5 mb-2 text-[11px] font-bold text-[var(--text-disabled)] border-b border-[var(--divider)]">
+            {searchResults.length}개 문서에서 {searchResults.reduce((sum, r) => sum + r.matchCount, 0)}건 발견
+          </div>
+          {searchResults.length > 0 ? (
+            searchResults.map(result => (
+              <button
+                key={result.id}
+                onClick={() => {
+                  setCurrentScene(result.id);
+                  setSearchTerm(searchTerm);
+                }}
+                className="w-full text-left p-2.5 rounded-lg hover:bg-[var(--bg-hover)] transition-all flex flex-col gap-1 border border-transparent hover:border-[var(--divider)] group"
+              >
+                <div className="text-[13px] font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">{result.title}</div>
+                {result.snippet && (
+                  <div className="text-[11px] text-[var(--text-secondary)] line-clamp-2 leading-relaxed opacity-80 break-all">
+                    {result.snippet}
+                  </div>
+                )}
+                <div className="text-[10px] text-[var(--accent)] font-medium mt-1">{result.matchCount}건의 일치</div>
+              </button>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-[var(--text-disabled)]">
+              <Search size={32} className="mb-2 opacity-20" />
+              <div className="text-[13px]">검색 결과가 없습니다</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 스크롤 가능한 트리 영역 */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      {!isSearching && (
+        <div className="flex-1 overflow-y-auto px-2 py-2">
         <DndContext 
           sensors={activeSensors}
           collisionDetection={pointerWithin}
@@ -347,6 +469,7 @@ export function Binder() {
           </SortableContext>
         </DndContext>
       </div>
+      )}
 
       {/* 바인더 하단 액션 */}
       <div className="p-3 border-t border-[var(--divider)]">

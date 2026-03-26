@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation';
 import { useAiStore } from '@/store/aiStore';
 import { AiPanel } from '@/components/ai/AiPanel';
 import { LoginModal } from '@/components/auth/LoginModal';
+import { BugReporter } from '@/components/ui/BugReporter';
 
 // 인증 상태 초기화 (세션 감지)
 import { useAuth } from '@/hooks/useAuth';
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <AuthInitializer />
         {children}
         <LoginModal />
+        <BugReporter />
       </div>
     );
   }
@@ -67,6 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* 로그인 모달 (전역 표시) */}
       <LoginModal />
+      <BugReporter />
     </div>
   );
 }
