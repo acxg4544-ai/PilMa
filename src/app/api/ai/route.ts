@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   fullPrompt += `[지시]\n${instruction}\n\n각 제안은 [1] [2] [3] 형식으로 구분해주세요.`;
 
   const result = streamText({
-    model: google('gemini-3-flash-preview'),
+    model: google('gemini-2.5-flash'),
     system: '당신은 한국어 웹소설 전문 작가입니다. 문맥의 문체와 톤을 정확히 유지하세요.',
     prompt: fullPrompt,
   });
