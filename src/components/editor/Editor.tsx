@@ -90,19 +90,51 @@ export default function NovelEditor() {
     return () => window.removeEventListener('storage', checkReplaceEnabled);
   }, []);
 
-  const replacementInputRules = React.useMemo(() => {
-    if (!replaceEnabled) return [];
-    return replacements.map(rep => {
-      const escapedFrom = rep.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new InputRule({
-        find: new RegExp(`${escapedFrom}$`),
-        handler: ({ state, range }) => {
-          const { tr } = state;
-          const start = range.from;
-          const end = range.to;
-          tr.replaceWith(start, end, state.schema.text(rep.to));
-        }
-      });
+  const textReplacementExtension = React.useMemo(() => {
+    return Extension.create({
+      name: 'textReplacement',
+      addProseMirrorPlugins() {
+        return [
+          new Plugin({
+            key: new PluginKey('textReplacement'),
+            props: {
+              handleKeyDown: (view, event) => {
+                if (!replaceEnabled || replacements.length === 0) return false;
+                
+                // 스페이스(32) 또는 엔터(13) 입력 시 치환 시도
+                if (event.key === ' ' || event.key === 'Enter') {
+                  const { state } = view;
+                  const { selection } = state;
+                  const { $from, empty } = selection;
+                  
+                  if (empty) {
+                    // 커서 이전 텍스트 20자 정도 확인
+                    const textBefore = $from.parent.textBetween(Math.max(0, $from.parentOffset - 20), $from.parentOffset, undefined, ' ');
+                    const match = textBefore.match(/(\S+)$/); // 마지막 단어 추출
+                    
+                    if (match) {
+                      const word = match[1];
+                      const rep = replacements.find(r => r.from === word);
+                      
+                      if (rep) {
+                        const start = $from.pos - word.length;
+                        const end = $from.pos;
+                        // 트랜잭션 수동 디스패치 (단어 치환)
+                        const tr = state.tr.insertText(rep.to, start, end);
+                        view.dispatch(tr);
+                        
+                        // 이벤트는 계속 흐르게 두어 스페이스/엔터가 뒤에 붙게 함
+                        return false; 
+                      }
+                    }
+                  }
+                }
+                return false;
+              }
+            }
+          })
+        ];
+      }
     });
   }, [replacements, replaceEnabled]);
 
@@ -435,7 +467,8 @@ export default function NovelEditor() {
     const interval = setInterval(() => {
       if (editorRef.current) {
         const text = editorRef.current.getText();
-        const count = text.length;
+        // 줄바꿈 제외 카운트 (문피아 기준)
+        const count = text.replace(/\r?\n/g, '').length;
         if (count !== lastCharCountRef.current) {
           setWordCount(count);
           lastCharCountRef.current = count;
@@ -530,11 +563,8 @@ export default function NovelEditor() {
     plotRef.current = newPlot;
     if (editorRef.current) {
       const editor = editorRef.current;
-      // getText() without options returns text including spaces. 
-      // blockSeparator '\n' ensures we don't miss newline "characters" if desired, 
-      // but usually for book word count, we just want visible text length including spaces.
       const text = editor.getText(); 
-      const count = text.length;
+      const count = text.replace(/\r?\n/g, '').length;
       const content = editor.getJSON();
       triggerAutoSave(content, count, newPlot);
     }
@@ -547,7 +577,7 @@ export default function NovelEditor() {
     // 무거운 작업 금지 및 글자수 업데이트 최적화 (300ms debounce)
     const content = editor.getJSON();
     const text = editor.getText();
-    const count = text.length;
+    const count = text.replace(/\r?\n/g, '').length;
 
     // 즉시 triggerAutoSave (내부에서 3s debounce 됨)
     triggerAutoSave(content, count, plotRef.current);
@@ -1003,14 +1033,14 @@ export default function NovelEditor() {
                   CharacterCount,
                   findHighlightExtension,
                   spellCheckHighlightExtension,
-                  // 스마트 따옴표 및 사용자 대치 InputRule
+                  textReplacementExtension,
+                  // 스마트 따옴표 InputRule
                   {
                     name: 'customInputRules',
                     addInputRules() {
-                      return [...customSmartQuotes, ...replacementInputRules];
+                      return [...customSmartQuotes];
                     },
                   } as any,
-                  spellCheckHighlightExtension,
                 ].filter(Boolean) as any}
                 onUpdate={({ editor }) => {
                    handleUpdate(editor);
