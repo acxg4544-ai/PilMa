@@ -29,6 +29,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAiPanelOpen, triggerInsert } = useAiStore();
   const pathname = usePathname();
 
+  // 에디터/프로젝트 페이지에서 바디 스크롤 차단
+  React.useEffect(() => {
+    if (pathname !== '/') {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [pathname]);
+
   // 홈 화면인 경우
   if (pathname === '/') {
     return (
@@ -43,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // 에디터/프로젝트 단위 화면
   return (
-    <div className="min-h-screen bg-pm-bg text-pm-text font-pretendard">
+    <div className="h-screen overflow-hidden bg-pm-bg text-pm-text font-pretendard">
       {/* 인증 상태 초기화 (UI 없음) */}
       <AuthInitializer />
 
@@ -51,13 +63,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Header />
       
       <main
-        className="pt-12 min-h-screen transition-all duration-300 ease-in-out relative"
+        className="pt-12 h-screen transition-all duration-300 ease-in-out relative overflow-hidden"
         style={{
           paddingLeft: isSidebarOpen ? `${sidebarWidth}px` : '0px',
           paddingRight: isAiPanelOpen && !aiPanelPipMode ? `${aiPanelWidth}px` : '0px',
         }}
       >
-        <div className="h-full w-full py-6 px-4 flex justify-center">
+        <div className="h-full w-full py-6 px-4 flex justify-center overflow-hidden">
           {children}
         </div>
       </main>

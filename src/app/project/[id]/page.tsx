@@ -94,7 +94,7 @@ export default function ProjectEditorPage() {
   if (!isReady) return null;
 
   return (
-    <div className="w-full h-full pb-32">
+    <div className="w-full h-full">
       <EditorComplete />
     </div>
   );

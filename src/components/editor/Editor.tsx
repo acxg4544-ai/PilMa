@@ -586,44 +586,48 @@ export default function NovelEditor() {
       
       // 커서 바로 앞의 텍스트가 공백/줄바꿈으로 끝난다면 (스페이스/엔터 입력된 상태)
       if (empty && $from.pos > 0) {
-        // 현재 블록(패러그래프)에서의 텍스트 추출 (최대 30자)
-        const textInBlock = $from.parent.textBetween(Math.max(0, $from.parentOffset - 30), $from.parentOffset, undefined, ' ');
+        // 현재 블록(패러그래프)에서의 텍스트 추출 (최대 60자 - 버퍼 넉넉히)
+        const textInBlock = $from.parent.textBetween(Math.max(0, $from.parentOffset - 60), $from.parentOffset, undefined, ' ');
 
         // 사이드 이펙트 방지를 위해 rAF로 감쌈
         requestAnimationFrame(() => {
           if (editor.isDestroyed) return;
+          const currentDocSize = editor.state.doc.content.size;
 
           // 엔터의 경우 커서가 이미 다음 패러그래프로 넘어갔을 가능성이 큼 ($from.parentOffset === 0)
-          if ($from.parentOffset === 0 && $from.pos >= 2 && $from.pos <= docSize) {
+          if ($from.parentOffset === 0 && $from.pos >= 2 && $from.pos <= currentDocSize) {
             // 커서 이전 노드(완료된 문장) 확인
             state.doc.nodesBetween($from.pos - 2, $from.pos - 1, (node: any, pos: number) => {
                if (node.isText) {
-                  const words = node.text?.split(/\s+/) || [];
-                  const lastWord = words[words.length - 1];
-                  if (lastWord) {
-                    const rep = replacements.find(r => r.from === lastWord);
-                    if (rep) {
-                        const from = pos + node.text!.length - lastWord.length;
-                        const to = pos + node.text!.length;
-                        if (from >= 0 && to <= docSize) {
-                          editor.commands.insertContentAt({ from, to }, rep.to);
-                        }
+                  const text = node.text || '';
+                  // 단어 경계 없이 끝부분이 일치하는 패턴 검색 (가장 긴 패턴 우선)
+                  const matchingReps = replacements
+                    .filter(r => text.endsWith(r.from))
+                    .sort((a, b) => b.from.length - a.from.length);
+                  
+                  const rep = matchingReps[0];
+                  if (rep) {
+                    const fromPos = pos + text.length - rep.from.length;
+                    const toPos = pos + text.length;
+                    if (fromPos >= 0 && toPos <= currentDocSize) {
+                      editor.commands.insertContentAt({ from: fromPos, to: toPos }, rep.to);
                     }
                   }
                }
             });
-          } else if (textInBlock.endsWith(' ') && $from.pos > 1 && $from.pos <= docSize) {
-            // 스페이스 입력 감지
-            const words = textInBlock.trimEnd().split(/\s+/);
-            const lastWord = words[words.length - 1];
-            if (lastWord) {
-              const rep = replacements.find(r => r.from === lastWord);
-              if (rep) {
-                const start = $from.pos - 1 - lastWord.length;
-                const end = $from.pos - 1;
-                if (start >= 0 && end <= docSize) {
-                  editor.commands.insertContentAt({ from: start, to: end }, rep.to);
-                }
+          } else if (textInBlock.endsWith(' ') && $from.pos > 1 && $from.pos <= currentDocSize) {
+            // 스페이스 입력 감지 - 단어 경계 없이 끝부분 일치 확인
+            const textBeforeSpace = textInBlock.slice(0, -1);
+            const matchingReps = replacements
+              .filter(r => textBeforeSpace.endsWith(r.from))
+              .sort((a, b) => b.from.length - a.from.length);
+              
+            const rep = matchingReps[0];
+            if (rep) {
+              const start = $from.pos - 1 - rep.from.length;
+              const end = $from.pos - 1;
+              if (start >= 0 && end <= currentDocSize) {
+                editor.commands.insertContentAt({ from: start, to: end }, rep.to);
               }
             }
           }
