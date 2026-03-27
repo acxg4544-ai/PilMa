@@ -75,13 +75,6 @@ export function Header() {
         <div className="flex items-center gap-1 mx-1">
           <SummaryUploader />
           <AiSettings />
-          <button
-            onClick={() => setIsAiSettingsOpen(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-all group shrink-0"
-            title="AI 설정 (Gemini / Claude)"
-          >
-            <Settings size={20} className="group-hover:rotate-45 transition-transform" />
-          </button>
         </div>
 
         {/* 동기화 버튼 */}

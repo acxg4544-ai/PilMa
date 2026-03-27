@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, X, Save, Trash2, Plus, MessageSquare, Replace, Book } from 'lucide-react';
+import { Settings, X, Save, Trash2, Plus, MessageSquare, Replace, Book, Sparkles, Key, Loader2, Check, ChevronDown } from 'lucide-react';
 import { db, TextReplacement, Dictionary } from '@/lib/db';
 import { useProjectStore } from '@/store/projectStore';
 import { useAiStore } from '@/store/aiStore';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 export function AiSettings() {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'prompt' | 'replace' | 'dict'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'replace' | 'dict' | 'model'>('prompt');
   const currentProjectId = useProjectStore(state => state.currentProjectId);
   const { promptPresets, setPromptPresets } = useAiStore();
   const [localPresets, setLocalPresets] = useState<Record<number, string>>({});
@@ -25,6 +25,15 @@ export function AiSettings() {
   // Dictionary states
   const [dictionary, setDictionary] = useState<Dictionary[]>([]);
   const [newWord, setNewWord] = useState('');
+  
+  // AI Model states (copied from AiSettingsModal)
+  const [selectedApi, setSelectedApi] = useState<'gemini' | 'claude'>('gemini');
+  const [geminiKey, setGeminiKey] = useState('');
+  const [claudeKey, setClaudeKey] = useState('');
+  const [geminiTestStatus, setGeminiTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [claudeTestStatus, setClaudeTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [isApiDropdownOpen, setIsApiDropdownOpen] = useState(false);
+  const apiDropdownRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -69,6 +78,14 @@ export function AiSettings() {
         const dict = await db.dictionary.where('projectId').equals(currentProjectId).toArray();
         setDictionary(dict);
 
+        // Load AI Model settings from localStorage
+        const savedApi = localStorage.getItem('pilma_ai_provider') as 'gemini' | 'claude' | null;
+        const savedGeminiKey = localStorage.getItem('pilma_gemini_key') || '';
+        const savedClaudeKey = localStorage.getItem('pilma_claude_key') || '';
+        if (savedApi) setSelectedApi(savedApi);
+        setGeminiKey(savedGeminiKey);
+        setClaudeKey(savedClaudeKey);
+
       } catch (e) {
         console.error('Failed to load settings data', e);
       }
@@ -76,8 +93,62 @@ export function AiSettings() {
     
     if (isOpen) {
       loadAllData();
+      setGeminiTestStatus('idle');
+      setClaudeTestStatus('idle');
     }
   }, [isOpen, currentProjectId, mounted]);
+
+  // 드롭다운 외부 클릭 닫기 (Effect)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (apiDropdownRef.current && !apiDropdownRef.current.contains(e.target as Node)) {
+        setIsApiDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // AI Model handlers
+  const handleSelectApi = (provider: 'gemini' | 'claude') => {
+    setSelectedApi(provider);
+    localStorage.setItem('pilma_ai_provider', provider);
+    setIsApiDropdownOpen(false);
+  };
+  const handleGeminiKeyChange = (val: string) => {
+    setGeminiKey(val);
+    localStorage.setItem('pilma_gemini_key', val.trim());
+  };
+  const handleClaudeKeyChange = (val: string) => {
+    setClaudeKey(val);
+    localStorage.setItem('pilma_claude_key', val.trim());
+  };
+  const handleTestGemini = async () => {
+    const key = geminiKey.trim();
+    if (!key) { setGeminiTestStatus('error'); return; }
+    setGeminiTestStatus('loading');
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'Ping' }] }], generationConfig: { maxOutputTokens: 1 } })
+      });
+      setGeminiTestStatus(res.ok ? 'success' : 'error');
+    } catch { setGeminiTestStatus('error'); }
+  };
+  const handleTestClaude = async () => {
+    const key = claudeKey.trim();
+    if (!key) { setClaudeTestStatus('error'); return; }
+    setClaudeTestStatus('loading');
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', provider: 'claude', apiKey: key })
+      });
+      setClaudeTestStatus(res.ok ? 'success' : 'error');
+    } catch { setClaudeTestStatus('error'); }
+  };
 
   const handleSavePrompt = async () => {
     if (!currentProjectId) return;
@@ -200,6 +271,16 @@ export function AiSettings() {
               >
                 <Book size={16} />
                 <span>단어장</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('model')}
+                className={cn(
+                  "flex-1 py-3 text-[13px] font-bold flex items-center justify-center gap-2 transition-all border-b-2",
+                  activeTab === 'model' ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/5" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <Sparkles size={16} />
+                <span>AI 모델</span>
               </button>
             </div>
             
@@ -338,6 +419,73 @@ export function AiSettings() {
                         아직 등록된 단어가 없습니다.
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'model' && (
+                <div className="space-y-6">
+                  <div className="bg-[var(--bg-hover)]/30 border border-[var(--border)] rounded-lg p-3">
+                    <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed font-medium">
+                      사용할 AI 엔진과 API 키를 설정합니다. <br/>
+                      Gemini 또는 Claude 중 하나를 선택해 주세요.
+                    </p>
+                  </div>
+
+                  {/* API Model Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[14px] font-bold text-[var(--text-primary)]">AI 모델 선택</label>
+                    <div className="relative" ref={apiDropdownRef}>
+                      <button
+                        onClick={() => setIsApiDropdownOpen(!isApiDropdownOpen)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[14px] text-[var(--text-primary)] hover:border-[var(--accent)] transition-all"
+                      >
+                        <span className="flex items-center gap-2">
+                          {selectedApi === 'gemini' ? '⚡ Gemini Flash' : '✨ Claude Sonnet'}
+                        </span>
+                        <ChevronDown size={16} className={cn("transition-transform", isApiDropdownOpen && "rotate-180")} />
+                      </button>
+                      {isApiDropdownOpen && (
+                        <div className="absolute top-full mt-1 left-0 right-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg z-[1001] overflow-hidden">
+                          <button onClick={() => handleSelectApi('gemini')} className={cn("w-full px-4 py-2.5 flex items-center gap-2 hover:bg-[var(--bg-hover)] text-left text-[14px]", selectedApi === 'gemini' ? "text-[var(--accent)] font-bold" : "text-[var(--text-primary)]")}>
+                            ⚡ Gemini Flash
+                          </button>
+                          <button onClick={() => handleSelectApi('claude')} className={cn("w-full px-4 py-2.5 flex items-center gap-2 hover:bg-[var(--bg-hover)] text-left text-[14px]", selectedApi === 'claude' ? "text-[var(--accent)] font-bold" : "text-[var(--text-primary)]")}>
+                            ✨ Claude Sonnet
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Gemini Key */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[14px] font-bold text-[var(--text-primary)]">Gemini API Key</label>
+                      {geminiTestStatus === 'success' && <span className="text-[12px] text-green-500 font-medium">연결 성공 ✅</span>}
+                      {geminiTestStatus === 'error' && <span className="text-[12px] text-red-500 font-medium">실패 ❌</span>}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="password" value={geminiKey} onChange={e => handleGeminiKeyChange(e.target.value)} placeholder="API 키 입력" className="flex-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]" />
+                      <button onClick={handleTestGemini} disabled={geminiTestStatus === 'loading'} className="px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg text-[12px] font-bold hover:bg-[var(--bg-card)] transition-all disabled:opacity-50">
+                        {geminiTestStatus === 'loading' ? <Loader2 size={14} className="animate-spin" /> : '연결 테스트'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Claude Key */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[14px] font-bold text-[var(--text-primary)]">Claude API Key</label>
+                      {claudeTestStatus === 'success' && <span className="text-[12px] text-green-500 font-medium">연결 성공 ✅</span>}
+                      {claudeTestStatus === 'error' && <span className="text-[12px] text-red-500 font-medium">실패 ❌</span>}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="password" value={claudeKey} onChange={e => handleClaudeKeyChange(e.target.value)} placeholder="API 키 입력" className="flex-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]" />
+                      <button onClick={handleTestClaude} disabled={claudeTestStatus === 'loading'} className="px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border)] rounded-lg text-[12px] font-bold hover:bg-[var(--bg-card)] transition-all disabled:opacity-50">
+                        {claudeTestStatus === 'loading' ? <Loader2 size={14} className="animate-spin" /> : '연결 테스트'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
