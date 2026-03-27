@@ -7,7 +7,6 @@ import { SyncButton } from '@/components/ui/SyncButton';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { CheckCircle, Clock, LogOut, LogIn, ArrowLeft, Settings } from 'lucide-react';
-import { AiSettings } from '@/components/ai/AiSettings';
 import { SummaryUploader } from '@/components/ai/SummaryUploader';
 import { AiSettingsModal } from '@/components/settings/AiSettingsModal';
 import { useAiStore } from '@/store/aiStore';
@@ -74,10 +73,9 @@ export function Header() {
         {/* AI 기능 (요약 업로드, 프롬프트 설정, AI 엔진 설정) */}
         <div className="flex items-center gap-1 mx-1">
           <SummaryUploader />
-          <AiSettings />
           <button
             onClick={() => setIsAiSettingsOpen(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-all group shrink-0"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[var(--accent)] hover:bg-[var(--bg-hover)] transition-all group shrink-0"
             title="AI 설정 (Gemini / Claude)"
           >
             <Settings size={20} className="group-hover:rotate-45 transition-transform" />
