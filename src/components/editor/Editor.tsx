@@ -121,14 +121,19 @@ export default function NovelEditor() {
               decorations: (state) => {
                 if (!findText || findMatches.length === 0) return null;
                 const decorations: Decoration[] = [];
+                const docSize = state.doc.content.size;
+
                 findMatches.forEach((match, idx) => {
-                  decorations.push(
-                    Decoration.inline(match.from, match.to, {
-                      class: idx === currentMatchIndex ? 'find-highlight-current' : 'find-highlight'
-                    })
-                  );
+                  // 문서 크기가 변했을 수 있으므로 유효성 체크
+                  if (match.from >= 0 && match.to <= docSize && match.from < match.to) {
+                    decorations.push(
+                      Decoration.inline(match.from, match.to, {
+                        class: idx === currentMatchIndex ? 'find-highlight-current' : 'find-highlight'
+                      })
+                    );
+                  }
                 });
-                return DecorationSet.create(state.doc, decorations);
+                return decorations.length > 0 ? DecorationSet.create(state.doc, decorations) : null;
               }
             }
           })
@@ -153,20 +158,24 @@ export default function NovelEditor() {
                 
                 const decorations: Decoration[] = [];
                 const textToFind = error.original;
+                const docSize = state.doc.content.size;
                 
                 state.doc.descendants((node, pos) => {
                   if (node.isText && node.text?.includes(textToFind)) {
                     const localStart = node.text.indexOf(textToFind);
                     const start = pos + localStart;
                     const end = start + textToFind.length;
-                    decorations.push(
-                      Decoration.inline(start, end, {
-                        class: 'spellcheck-highlight'
-                      })
-                    );
+                    
+                    if (start >= 0 && end <= docSize) {
+                      decorations.push(
+                        Decoration.inline(start, end, {
+                          class: 'spellcheck-highlight'
+                        })
+                      );
+                    }
                   }
                 });
-                return DecorationSet.create(state.doc, decorations);
+                return decorations.length > 0 ? DecorationSet.create(state.doc, decorations) : null;
               }
             }
           })
@@ -561,52 +570,64 @@ export default function NovelEditor() {
 
   const handleUpdate = useCallback((editor: any) => {
     // 씬 전환 중이거나 에디터가 없으면 업데이트 무시
-    if (!editor || isTransitioningRef.current) return;
+    if (!editor || editor.isDestroyed || isTransitioningRef.current) return;
     editorRef.current = editor;
     
     // 무거운 작업 금지 및 글자수 업데이트 최적화 (300ms debounce)
+    const state = editor.state;
     const content = editor.getJSON();
     const text = editor.getText();
+    const docSize = state.doc.content.size;
     
     // 텍스트 대치 (자동 치환) 로직 통합
     if (replaceEnabled && replacements.length > 0) {
-      const { state, view } = editor;
       const { selection } = state;
       const { $from, empty } = selection;
       
       // 커서 바로 앞의 텍스트가 공백/줄바꿈으로 끝난다면 (스페이스/엔터 입력된 상태)
-      if (empty) {
+      if (empty && $from.pos > 0) {
         // 현재 블록(패러그래프)에서의 텍스트 추출 (최대 30자)
         const textInBlock = $from.parent.textBetween(Math.max(0, $from.parentOffset - 30), $from.parentOffset, undefined, ' ');
-        const isTriggerChar = textInBlock.endsWith(' ') || textInBlock.endsWith('\n') || textInBlock.length === 0;
 
-        // 엔터의 경우 커서가 이미 다음 패러그래프로 넘어갔을 가능성이 큼 ($from.parentOffset === 0)
-        if ($from.parentOffset === 0) {
-          // 커서 이전 노드(완료된 문장) 확인
-          const posBefore = $from.pos - 1;
-          const nodeBefore = state.doc.nodeAt(posBefore - 1); // paragraph split 전 위치?
-          // 간단히 이전 블록의 마지막 텍스트 확인
-          state.doc.nodesBetween($from.pos - 2, $from.pos - 1, (node: any, pos: number) => {
-             if (node.isText) {
-                const words = node.text?.split(/\s+/) || [];
-                const lastWord = words[words.length - 1];
-                const rep = replacements.find(r => r.from === lastWord);
-                if (rep) {
-                    editor.commands.insertContentAt({ from: pos + node.text!.length - lastWord.length, to: pos + node.text!.length }, rep.to);
+        // 사이드 이펙트 방지를 위해 rAF로 감쌈
+        requestAnimationFrame(() => {
+          if (editor.isDestroyed) return;
+
+          // 엔터의 경우 커서가 이미 다음 패러그래프로 넘어갔을 가능성이 큼 ($from.parentOffset === 0)
+          if ($from.parentOffset === 0 && $from.pos >= 2 && $from.pos <= docSize) {
+            // 커서 이전 노드(완료된 문장) 확인
+            state.doc.nodesBetween($from.pos - 2, $from.pos - 1, (node: any, pos: number) => {
+               if (node.isText) {
+                  const words = node.text?.split(/\s+/) || [];
+                  const lastWord = words[words.length - 1];
+                  if (lastWord) {
+                    const rep = replacements.find(r => r.from === lastWord);
+                    if (rep) {
+                        const from = pos + node.text!.length - lastWord.length;
+                        const to = pos + node.text!.length;
+                        if (from >= 0 && to <= docSize) {
+                          editor.commands.insertContentAt({ from, to }, rep.to);
+                        }
+                    }
+                  }
+               }
+            });
+          } else if (textInBlock.endsWith(' ') && $from.pos > 1 && $from.pos <= docSize) {
+            // 스페이스 입력 감지
+            const words = textInBlock.trimEnd().split(/\s+/);
+            const lastWord = words[words.length - 1];
+            if (lastWord) {
+              const rep = replacements.find(r => r.from === lastWord);
+              if (rep) {
+                const start = $from.pos - 1 - lastWord.length;
+                const end = $from.pos - 1;
+                if (start >= 0 && end <= docSize) {
+                  editor.commands.insertContentAt({ from: start, to: end }, rep.to);
                 }
-             }
-          });
-        } else if (textInBlock.endsWith(' ')) {
-          // 스페이스 입력 감지
-          const words = textInBlock.trimEnd().split(/\s+/);
-          const lastWord = words[words.length - 1];
-          const rep = replacements.find(r => r.from === lastWord);
-          if (rep) {
-            const start = $from.pos - 1 - lastWord.length;
-            const end = $from.pos - 1;
-            editor.commands.insertContentAt({ from: start, to: end }, rep.to);
+              }
+            }
           }
-        }
+        });
       }
     }
 
@@ -642,7 +663,7 @@ export default function NovelEditor() {
     }
   }, [typewriterMode]);
 
-  // 맞춤법 검사 실행
+  // 맞춤법 검사 실행 (Gemini / Claude 분기)
   const handleSpellCheck = async () => {
     if (!editorRef.current || isSpellChecking) return;
     
@@ -662,14 +683,25 @@ export default function NovelEditor() {
 
       const text = editorRef.current.getText();
       
-      const response = await fetch('/api/ai/spellcheck', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text,
-          dictionary: dictionaryWords
-        }),
-      });
+      // API 분기: localStorage에서 선택된 AI 엔진 확인
+      const provider = localStorage.getItem('pilma_ai_provider') || 'gemini';
+      
+      let response: Response;
+      if (provider === 'claude') {
+        const claudeApiKey = localStorage.getItem('pilma_claude_key') || '';
+        response = await fetch('/api/ai/claude/spellcheck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, dictionary: dictionaryWords, apiKey: claudeApiKey }),
+        });
+      } else {
+        response = await fetch('/api/ai/spellcheck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, dictionary: dictionaryWords }),
+        });
+      }
+
       const data = await response.json();
       setSpellCheckResults(data.results || []);
     } catch (err) {
@@ -1138,12 +1170,16 @@ export default function NovelEditor() {
                        foundPos = pos + node.text.indexOf(textToFind);
                     }
                   });
-                  if (foundPos !== -1) {
-                     editor.commands.setTextSelection({ from: foundPos, to: foundPos + textToFind.length });
+                  if (foundPos >= 0 && foundPos < editor.state.doc.content.size) {
+                     editor.commands.setTextSelection({ from: foundPos, to: Math.min(foundPos + textToFind.length, editor.state.doc.content.size) });
                      const { view } = editor;
-                     const dom = view.nodeDOM(foundPos) || view.domAtPos(foundPos).node;
-                     if (dom instanceof HTMLElement) {
-                        dom.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                     try {
+                       const dom = view.nodeDOM(foundPos) || view.domAtPos(foundPos).node;
+                       if (dom instanceof HTMLElement) {
+                          dom.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                       }
+                     } catch (e) {
+                       console.warn('Scroll into view failed:', e);
                      }
                   }
                }

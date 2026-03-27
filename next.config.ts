@@ -15,6 +15,8 @@ export default withSerwist({
       },
     ],
   },
+  // @anthropic-ai/sdk는 Node.js 전용이므로 webpack 번들에서 제외
+  serverExternalPackages: ['@anthropic-ai/sdk'],
   typescript: { ignoreBuildErrors: true },
   turbopack: {},
 });

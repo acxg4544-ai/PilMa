@@ -6,8 +6,9 @@ import { ProjectCard } from '@/components/home/ProjectCard';
 import { NewProjectModal } from '@/components/home/NewProjectModal';
 import { EditProjectModal } from '@/components/home/EditProjectModal';
 import { DeleteConfirmModal } from '@/components/home/DeleteConfirmModal';
+import { AiSettingsModal } from '@/components/settings/AiSettingsModal';
 import { useRouter } from 'next/navigation';
-import { Search, LogIn, LogOut, User, Loader2 } from 'lucide-react';
+import { Search, LogIn, LogOut, User, Loader2, Settings } from 'lucide-react';
 import { Project } from '@/lib/db';
 import { useAuth } from '@/hooks/useAuth';
 import { LoginModal } from '@/components/auth/LoginModal';
@@ -22,6 +23,7 @@ export default function Home() {
   const [filter, setFilter] = useState<'all' | 'favorite'>('all');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -78,6 +80,15 @@ export default function Home() {
         )}
 
         <div className="flex items-center gap-3">
+          {/* AI 엔진 설정 */}
+          <button
+            onClick={() => setIsAiSettingsOpen(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-all group"
+            title="AI 설정 (Gemini / Claude)"
+          >
+            <Settings size={22} className="group-hover:rotate-45 transition-transform" />
+          </button>
+
           {user ? (
             <div className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border)] px-3 py-1.5 rounded-lg shadow-sm">
               <div className="flex items-center gap-2">
@@ -227,6 +238,7 @@ export default function Home() {
       {isModalOpen && <NewProjectModal onClose={() => setIsModalOpen(false)} />}
       {editingProject && <EditProjectModal project={editingProject} onClose={() => setEditingProject(null)} />}
       {deletingProject && <DeleteConfirmModal project={deletingProject} onClose={() => setDeletingProject(null)} />}
+      <AiSettingsModal isOpen={isAiSettingsOpen} onClose={() => setIsAiSettingsOpen(false)} />
     </div>
   );
 }
