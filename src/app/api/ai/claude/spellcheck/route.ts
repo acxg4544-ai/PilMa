@@ -50,24 +50,21 @@ ${text}`;
       model: 'claude-sonnet-4-6-20250514',
       max_tokens: 4096,
       temperature: 0,
-      system: [{
-        type: 'text',
-        text: 'You are an expert Korean proofreader. Return only valid JSON arrays.',
-        // @ts-ignore - Anthropic SDK prompt caching
-        cache_control: { type: 'ephemeral' }
-      }],
+      system: [
+        {
+          type: 'text',
+          text: 'You are an expert Korean proofreader. Return only valid JSON arrays.',
+          // @ts-ignore - Anthropic SDK prompt caching
+          cache_control: { type: 'ephemeral' }
+        }
+      ],
       messages: [
         { role: 'user', content: prompt }
       ]
     });
 
     // 응답 텍스트 추출
-    const responseText = response.content
-      .filter((block): block is Anthropic.Messages.TextBlock => block.type === 'text')
-      .map(block => block.text)
-      .join('');
-
-    console.log('[Claude Spellcheck] Raw response:', responseText);
+    const responseText = response.content[0]?.type === 'text' ? response.content[0].text : '';
 
     // JSON 파싱
     let parsed: any[] = [];
@@ -80,23 +77,19 @@ ${text}`;
         .trim();
       parsed = JSON.parse(cleaned);
     } catch {
-      console.log('[Claude Spellcheck] Direct parse failed, trying regex extraction...');
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         try {
           parsed = JSON.parse(jsonMatch[0]);
-        } catch (innerErr) {
-          console.error('[Claude Spellcheck] Regex extraction parse also failed:', innerErr);
+        } catch {
           return NextResponse.json({
             error: 'Failed to parse AI response as JSON',
-            rawResponse: responseText.substring(0, 500),
             results: []
           });
         }
       } else {
         return NextResponse.json({
           error: 'No JSON array found in AI response',
-          rawResponse: responseText.substring(0, 500),
           results: []
         });
       }
@@ -119,7 +112,7 @@ ${text}`;
 
     return NextResponse.json({ results: filtered });
   } catch (err: any) {
-    console.error('[Claude Spellcheck] Unexpected error:', err);
+    console.error('[Claude Spellcheck Error]:', err);
     return NextResponse.json({
       error: String(err?.message || err),
       results: []
