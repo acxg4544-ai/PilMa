@@ -9,6 +9,7 @@ import CharacterCount from '@tiptap/extension-character-count';
 import { InputRule, Extension } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Slice, Fragment } from '@tiptap/pm/model';
 import { useUiStore } from '@/store/uiStore';
 import { useAiStore } from '@/store/aiStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -596,25 +597,23 @@ export default function NovelEditor() {
 
           // 엔터의 경우 커서가 이미 다음 패러그래프로 넘어갔을 가능성이 큼 ($from.parentOffset === 0)
           if ($from.parentOffset === 0 && $from.pos >= 2 && $from.pos <= currentDocSize) {
-            // 커서 이전 노드(완료된 문장) 확인
-            state.doc.nodesBetween($from.pos - 2, $from.pos - 1, (node: any, pos: number) => {
-               if (node.isText) {
-                  const text = node.text || '';
-                  // 단어 경계 없이 끝부분이 일치하는 패턴 검색 (가장 긴 패턴 우선)
-                  const matchingReps = replacements
+             const toPos = $from.pos - 2; // 이전 문단의 끝 위치
+             if (toPos > 0) {
+                 const fromSearchPos = Math.max(0, toPos - 60);
+                 const text = state.doc.textBetween(fromSearchPos, toPos, ' ');
+                 
+                 const matchingReps = replacements
                     .filter(r => text.endsWith(r.from))
                     .sort((a, b) => b.from.length - a.from.length);
-                  
-                  const rep = matchingReps[0];
-                  if (rep) {
-                    const fromPos = pos + text.length - rep.from.length;
-                    const toPos = pos + text.length;
+                 
+                 const rep = matchingReps[0];
+                 if (rep) {
+                    const fromPos = toPos - rep.from.length;
                     if (fromPos >= 0 && toPos <= currentDocSize) {
                       editor.commands.insertContentAt({ from: fromPos, to: toPos }, rep.to);
                     }
-                  }
-               }
-            });
+                 }
+             }
           } else if (textInBlock.endsWith(' ') && $from.pos > 1 && $from.pos <= currentDocSize) {
             // 스페이스 입력 감지 - 단어 경계 없이 끝부분 일치 확인
             const textBeforeSpace = textInBlock.slice(0, -1);
@@ -787,11 +786,21 @@ export default function NovelEditor() {
     }
   };
 
+  /**
+   * 본문 복사 시 최소한의 정리만 수행하여 원본 텍스트(엔터, 띄어쓰기)를 최대한 보존합니다.
+   * 기존의 특수문자 전후 공백 제거 로직은 줄바꿈과 띄어쓰기를 훼손하는 부작용이 있어 제거되었습니다.
+   */
+  const normalizeText = useCallback((text: string): string => {
+    // 줄 끝에 있는 불필요한 공백만 정리 (줄바꿈 문자는 보존)
+    return text.replace(/[ \t]+$/gm, '');
+  }, []);
+
   const handleCopyText = useCallback(() => {
     if (!editorRef.current) return;
     
-    // 순수 텍스트 추출 (Paragraph 사이에 \n 삽입)
-    const plainText = editorRef.current.getText({ blockSeparator: '\n' });
+    // 순수 텍스트 추출 (Paragraph 사이에 \n 삽입) + 특수문자 공백 정규화
+    const rawText = editorRef.current.getText({ blockSeparator: '\n' });
+    const plainText = normalizeText(rawText);
     
     navigator.clipboard.writeText(plainText).then(() => {
       setIsCopied(true);
@@ -799,7 +808,7 @@ export default function NovelEditor() {
     }).catch(err => {
       console.error('Failed to copy text:', err);
     });
-  }, []);
+  }, [normalizeText]);
 
   const customSmartQuotes = React.useMemo(() => {
     if (!smartQuotes) return [];
